@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tel Aviv Parking Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font); }
+  #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; background: #eef1f5; }
+
+  #status-banner {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412;
+    padding: 9px 16px; border-radius: 14px; font-size: 13px; font-weight: 500;
+    z-index: 1000; display: none; box-shadow: 0 8px 24px rgba(16,24,40,.14);
+    font-family: var(--font);
+  }
+
+  .brand {
+    background: rgba(255,255,255,.9); backdrop-filter: blur(10px);
+    border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(16,24,40,.12); padding: 9px 14px;
+    font-weight: 700; font-size: 14px; color: #16181d; font-family: var(--font);
+  }
+  .legend {
+    background: rgba(255,255,255,.9); backdrop-filter: blur(10px);
+    border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(16,24,40,.12); padding: 10px 12px;
+    font-size: 12.5px; font-family: var(--font); color: #16181d;
+  }
+  .legend .row { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
+  .legend .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .refresh-btn {
+    background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(16,24,40,.12); padding: 8px 14px;
+    font-family: var(--font); font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+  .refresh-btn:hover { background: #f8fafc; }
+
+  .pin { position: relative; width: 30px; height: 40px; filter: drop-shadow(0 3px 4px rgba(0,0,0,.25)); }
+  .pin .letter {
+    position: absolute; top: 5px; left: 0; width: 30px; text-align: center;
+    font-family: var(--font); font-weight: 800; font-size: 12px;
+  }
+
+  .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 8px 24px rgba(16,24,40,.14); }
+  .leaflet-popup-content { font-family: var(--font); margin: 12px 14px; font-size: 13px; }
+  .popup-title { font-weight: 700; font-size: 15px; color: #16181d; }
+  .popup-addr { color: #5b6472; font-size: 12.5px; margin: 2px 0 8px; }
+  .popup-status { display: inline-block; padding: 3px 9px; border-radius: 999px; font-weight: 700; font-size: 11.5px; margin-bottom: 6px; }
+  .popup-row { font-size: 12.5px; margin: 2px 0; color: #16181d; }
+  .popup-updated { font-size: 11px; color: #9aa2ad; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="status-banner"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(function () {
+  var API_URL = "https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/970/query" +
+    "?where=1%3D1" +
+    "&outFields=oid_hof,shem_chenyon,ktovet,lon,lat,status_chenyon,tr_status_chenyon,mispar_mekomot_bchenyon,taarif_yom,taarif_layla" +
+    "&returnGeometry=false" +
+    "&f=json";
+
+  var REFRESH_INTERVAL_MS = 2 * 60 * 1000;
+
+  var STATUS_INFO = {
+    "פנוי":  { hex: "#16a34a", label: "Available (פנוי)" },
+    "מעט":  { hex: "#d97706", label: "Few spaces (מעט)" },
+    "מלא":  { hex: "#dc2626", label: "Full (מלא)" },
+    "סגור": { hex: "#6b7280", label: "Closed (סגור)" },
+    "פעיל": { hex: "#64748b", label: "Status unknown (פעיל)" }
+  };
+  var DEFAULT_STATUS = { hex: "#64748b", label: "Status unknown" };
+  var STATUS_ORDER = ["פנוי", "מעט", "מלא", "סגור", "פעיל"];
+
+  function statusInfo(rawStatus) {
+    var key = (rawStatus || "").trim();
+    return STATUS_INFO[key] || DEFAULT_STATUS;
+  }
+
+  var map = L.map("map", { center: [32.08, 34.77], zoom: 13, zoomControl: false });
+
+  L.control.zoom({ position: "topright" }).addTo(map);
+
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    subdomains: "abcd",
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  var markersLayer = L.layerGroup().addTo(map);
+
+  var BrandControl = L.Control.extend({
+    options: { position: "topleft" },
+    onAdd: function () {
+      var div = L.DomUtil.create("div", "brand");
+      div.textContent = "Tel Aviv Parking";
+      return div;
+    }
+  });
+  new BrandControl().addTo(map);
+
+  var LegendControl = L.Control.extend({
+    options: { position: "bottomright" },
+    onAdd: function () {
+      var div = L.DomUtil.create("div", "legend");
+      STATUS_ORDER.forEach(function (key) {
+        var info = STATUS_INFO[key];
+        var row = document.createElement("div");
+        row.className = "row";
+
+        var dot = document.createElement("span");
+        dot.className = "dot";
+        dot.style.background = info.hex;
+        row.appendChild(dot);
+        row.appendChild(document.createTextNode(info.label));
+
+        div.appendChild(row);
+      });
+      return div;
+    }
+  });
+  new LegendControl().addTo(map);
+
+  var RefreshControl = L.Control.extend({
+    options: { position: "topright" },
+    onAdd: function () {
+      var btn = L.DomUtil.create("button", "refresh-btn");
+      btn.type = "button";
+      btn.textContent = "Refresh now";
+      L.DomEvent.on(btn, "click", function (e) {
+        L.DomEvent.stopPropagation(e);
+        loadData(btn);
+      });
+      L.DomEvent.disableClickPropagation(btn);
+      this._btn = btn;
+      return btn;
+    }
+  });
+  var refreshControl = new RefreshControl().addTo(map);
+
+  var banner = document.getElementById("status-banner");
+  function showBanner(msg) {
+    banner.textContent = msg;
+    banner.style.display = "block";
+  }
+  function hideBanner() {
+    banner.style.display = "none";
+  }
+
+  function formatUpdatedAt(epochMs) {
+    if (!epochMs) return "unknown";
+    return new Date(epochMs).toLocaleString();
+  }
+
+  function escapeHtml(str) {
+    return String(str == null ? "" : str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function renderLots(lots) {
+    markersLayer.clearLayers();
+    lots.forEach(function (lot) {
+      if (typeof lot.lat !== "number" || typeof lot.lon !== "number") return;
+      var info = statusInfo(lot.status);
+
+      var html =
+        '<div class="pin"><svg width="30" height="40" viewBox="0 0 30 40">' +
+        '<path d="M15 0C6.7 0 0 6.7 0 15c0 10 15 25 15 25s15-15 15-25C30 6.7 23.3 0 15 0z" fill="' + info.hex + '"/>' +
+        '<circle cx="15" cy="15" r="7" fill="#fff"/></svg>' +
+        '<span class="letter" style="color:' + info.hex + '">P</span></div>';
+      var icon = L.divIcon({ html: html, className: "", iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -36] });
+      var marker = L.marker([lot.lat, lot.lon], { icon: icon });
+
+      var popupHtml =
+        '<div class="popup-title">' + escapeHtml(lot.name || "Parking lot") + "</div>" +
+        '<div class="popup-addr">' + escapeHtml(lot.address || "") + "</div>" +
+        '<div class="popup-status" style="background:' + info.hex + '1a;color:' + info.hex + '">' + info.label + "</div>" +
+        (lot.tariffDay ? '<div class="popup-row">Day: ' + escapeHtml(lot.tariffDay) + "</div>" : "") +
+        (lot.tariffNight ? '<div class="popup-row">Night: ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
+        (lot.capacity ? '<div class="popup-row">Capacity: ' + escapeHtml(lot.capacity) + "</div>" : "") +
+        '<div class="popup-updated">Updated: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) + "</div>";
+
+      marker.bindPopup(popupHtml);
+      markersLayer.addLayer(marker);
+    });
+  }
+
+  function parseLots(json) {
+    if (!json || !Array.isArray(json.features)) return [];
+    return json.features.map(function (f) {
+      var a = f.attributes || {};
+      return {
+        id: a.oid_hof,
+        name: a.shem_chenyon,
+        address: a.ktovet,
+        lat: typeof a.lat === "number" ? a.lat : parseFloat(a.lat),
+        lon: typeof a.lon === "number" ? a.lon : parseFloat(a.lon),
+        status: a.status_chenyon,
+        updatedAt: a.tr_status_chenyon,
+        capacity: a.mispar_mekomot_bchenyon,
+        tariffDay: a.taarif_yom,
+        tariffNight: a.taarif_layla
+      };
+    });
+  }
+
+  function loadData(triggerBtn) {
+    var btn = triggerBtn || (refreshControl && refreshControl._btn);
+    var originalLabel = btn ? btn.textContent : null;
+    if (btn) {
+      btn.textContent = "Refreshing…";
+      btn.disabled = true;
+    }
+
+    fetch(API_URL)
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (json) {
+        if (json.error) throw new Error(json.error.message || "API error");
+        var lots = parseLots(json);
+        renderLots(lots);
+        hideBanner();
+      })
+      .catch(function (err) {
+        console.error("Failed to load parking data:", err);
+        showBanner("Couldn't refresh parking data, will retry — " + err.message);
+      })
+      .finally(function () {
+        if (btn) {
+          btn.textContent = originalLabel;
+          btn.disabled = false;
+        }
+      });
+  }
+
+  loadData();
+  setInterval(loadData, REFRESH_INTERVAL_MS);
+})();
+</script>
+</body>
+</html>

@@ -62,6 +62,7 @@
     border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
     box-shadow: 0 8px 24px rgba(16,24,40,.12); padding: 10px 12px;
     font-size: 12.5px; font-family: var(--font); color: #16181d;
+    direction: rtl;
   }
   .legend .row { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
   .legend .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
@@ -134,7 +135,7 @@
 <div id="info-modal-backdrop">
   <div id="info-modal">
     <button type="button" class="info-close" aria-label="סגור (Close)">&times;</button>
-    <div class="info-name">צור קשר (Contact Me)</div>
+    <div class="info-name">Contact Me</div>
     <a href="https://www.linkedin.com/in/chen-m/" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>
   </div>
 </div>
@@ -410,7 +411,7 @@
   }
 
   function formatUpdatedAt(epochMs) {
-    if (!epochMs) return "לא ידוע (unknown)";
+    if (!epochMs) return "לא ידוע";
     // epochMs's Y/M/D h:m:s components are already Israel wall-clock time,
     // just mislabeled as UTC ms by the source API.
     // Formatting with timeZone: 'UTC' reads those components back out as-is;
@@ -451,12 +452,12 @@
   function formatAgo(epochMs) {
     if (!epochMs) return "";
     var minutes = Math.floor(Math.max(0, israelNowMs() - epochMs) / 60000);
-    if (minutes < 1) return "עכשיו (just now)";
-    if (minutes < 60) return "לפני " + minutes + " דקות (" + minutes + " min ago)";
+    if (minutes < 1) return "עכשיו";
+    if (minutes < 60) return "לפני " + minutes + " דקות";
     var hours = Math.floor(minutes / 60);
-    if (hours < 24) return "לפני " + hours + " שעות (" + hours + " hr ago)";
+    if (hours < 24) return "לפני " + hours + " שעות";
     var days = Math.floor(hours / 24);
-    return "לפני " + days + " ימים (" + days + " day" + (days === 1 ? "" : "s") + " ago)";
+    return "לפני " + days + " ימים";
   }
 
   function escapeHtml(str) {
@@ -507,7 +508,7 @@
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
         (lot.capacity ? '<div class="popup-row">קיבולת (Capacity): ' + escapeHtml(lot.capacity) + "</div>" : "") +
-        '<div class="popup-updated">עודכן (Updated): ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) +
+        '<div class="popup-updated">עודכן: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) +
           (lot.updatedAt ? ' (' + escapeHtml(formatAgo(lot.updatedAt)) + ')' : '') + "</div>" +
         (officialLink ? '<div class="popup-row"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(officialLink) + '</a></div>' : "");
 

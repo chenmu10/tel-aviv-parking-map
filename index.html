@@ -353,6 +353,8 @@
       var icon = L.divIcon({ html: html, className: "", iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -36] });
       var marker = L.marker([lot.lat, lot.lon], { icon: icon });
 
+      var officialLink = AHUZOT_LINKS[normalizeLotName(lot.name)];
+
       var popupHtml =
         '<div class="popup-title">' + escapeHtml(lot.name || "Parking lot") + "</div>" +
         '<div class="popup-addr">' + escapeHtml(lot.address || "") + "</div>" +
@@ -361,7 +363,8 @@
         (lot.tariffNight ? '<div class="popup-row">Night: ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
         (lot.capacity ? '<div class="popup-row">Capacity: ' + escapeHtml(lot.capacity) + "</div>" : "") +
         '<div class="popup-updated">Updated: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) + "</div>" +
-        (stale ? '<div class="popup-stale">⚠ Hasn\'t updated in over 30 min — may not reflect current availability</div>' : "");
+        (stale ? '<div class="popup-stale">⚠ Hasn\'t updated in over 30 min — may not reflect current availability</div>' : "") +
+        (officialLink ? '<div class="popup-row"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">View official page ↗</a></div>' : "");
 
       marker.bindPopup(popupHtml);
       markersLayer.addLayer(marker);

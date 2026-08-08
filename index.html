@@ -45,13 +45,6 @@
   .legend.collapsed .legend-toggle .chevron { transform: rotate(-90deg); }
   .legend.collapsed .legend-rows { display: none; }
   .legend-rows { margin-top: 6px; }
-  .refresh-btn {
-    background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(16,24,40,.12); padding: 8px 14px;
-    font-family: var(--font); font-weight: 600; font-size: 13px; cursor: pointer;
-  }
-  .refresh-btn:hover { background: #f8fafc; }
-
   .locate-btn {
     background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 50%;
     box-shadow: 0 8px 24px rgba(16,24,40,.12); width: 40px; height: 40px;
@@ -282,23 +275,6 @@
   });
   new LegendControl().addTo(map);
 
-  var RefreshControl = L.Control.extend({
-    options: { position: "topright" },
-    onAdd: function () {
-      var btn = L.DomUtil.create("button", "refresh-btn");
-      btn.type = "button";
-      btn.textContent = "Refresh now";
-      L.DomEvent.on(btn, "click", function (e) {
-        L.DomEvent.stopPropagation(e);
-        loadData(btn);
-      });
-      L.DomEvent.disableClickPropagation(btn);
-      this._btn = btn;
-      return btn;
-    }
-  });
-  var refreshControl = new RefreshControl().addTo(map);
-
   var LocateControl = L.Control.extend({
     options: { position: "bottomleft" },
     onAdd: function () {
@@ -334,9 +310,9 @@
 
   // Keeps popups clear of the fixed corner controls when Leaflet auto-pans
   // them into view -- without this, a popup near the top can end up under
-  // the zoom/refresh controls, and one near the bottom under the legend.
+  // the zoom control, and one near the bottom under the legend.
   var POPUP_AUTOPAN_PADDING = {
-    autoPanPaddingTopLeft: L.point(16, 140),
+    autoPanPaddingTopLeft: L.point(16, 90),
     autoPanPaddingBottomRight: L.point(190, 160)
   };
 
@@ -475,14 +451,7 @@
     });
   }
 
-  function loadData(triggerBtn) {
-    var btn = triggerBtn || (refreshControl && refreshControl._btn);
-    var originalLabel = btn ? btn.textContent : null;
-    if (btn) {
-      btn.textContent = "Refreshing…";
-      btn.disabled = true;
-    }
-
+  function loadData() {
     fetch(API_URL)
       .then(function (res) {
         if (!res.ok) throw new Error("HTTP " + res.status);
@@ -497,12 +466,6 @@
       .catch(function (err) {
         console.error("Failed to load parking data:", err);
         showBanner("Couldn't refresh parking data, will retry — " + err.message);
-      })
-      .finally(function () {
-        if (btn) {
-          btn.textContent = originalLabel;
-          btn.disabled = false;
-        }
       });
   }
 

@@ -17,7 +17,9 @@ were current.
 Surface, per lot, when a status hasn't been refreshed recently enough to
 trust — without changing what status is displayed. This is a data-quality
 signal layered on top of the existing display, not a correction of the
-underlying data (which we don't control).
+underlying data (which we don't control). Along the way, fix the existing
+"Updated: ..." popup timestamp, which is already displaying the wrong time
+due to the same timezone quirk (see below).
 
 ## Key finding: timestamp format quirk
 
@@ -38,6 +40,17 @@ Since Israel observes DST, a hardcoded `+3h` correction would also quietly
 break for an hour twice a year. The fix is to compute "Israel's current
 wall-clock time" directly via a timezone-aware conversion, so it's always
 expressed in the same (mislabeled) representation as the source data.
+
+**This is already visibly wrong today, independent of the staleness
+feature.** The existing popup's "Updated: ..." line uses
+`new Date(epochMs).toLocaleString()`, which renders in the *browser's*
+local timezone. Since the raw value is already Israel local time
+mislabeled as UTC, a browser in Israel time (UTC+3) shifts it by another
++3h on top — a double offset. Confirmed against the municipality's own
+lot-detail page (ahuzot.co.il): for the same lot, it reported a last
+update of `15:29`, while our popup showed `18:32:30` — a ~3h03m gap,
+matching the double-offset exactly (the extra ~3 min is ordinary
+fetch-timing lag, not a bug).
 
 ## Design
 
@@ -82,6 +95,24 @@ When stale, add a line below the existing "Updated: ..." row:
 
 Non-stale lots are unaffected; the popup looks exactly as it does today.
 
+### 5. Fix the "Updated" timestamp display
+
+`formatUpdatedAt()` currently does `new Date(epochMs).toLocaleString()`,
+which double-offsets as described above. Since `epochMs`'s Y/M/D h:m:s
+components already *are* the correct Israel wall-clock time, format them
+by treating the value as UTC (so no further timezone shift is applied):
+
+```
+function formatUpdatedAt(epochMs) {
+  if (!epochMs) return "unknown";
+  return new Date(epochMs).toLocaleString('en-GB', { timeZone: 'UTC' });
+}
+```
+
+This makes the displayed "Updated: ..." time correct regardless of the
+visitor's own browser timezone, and consistent with what `israelNowMs()`
+and `isStale()` are comparing against.
+
 ## Non-goals
 
 - Not cross-referencing another data source.
@@ -103,3 +134,7 @@ no build step). Verification is manual:
    data via the console to an old `updatedAt` and re-render, confirming the
    badge appears on that marker and the popup shows the warning line.
    Revert by reloading the page — no debug code is left in `index.html`.
+3. Cross-check a live lot's popup "Updated: ..." time against its
+   corresponding page on ahuzot.co.il (`/Parking/ParkingDetails/?ID=<n>`)
+   and confirm they now match (within normal fetch-timing lag), instead of
+   being off by ~3 hours.

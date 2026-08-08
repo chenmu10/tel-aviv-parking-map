@@ -96,7 +96,7 @@
   .locate-btn {
     background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 50%;
     box-shadow: 0 8px 24px rgba(16,24,40,.12); width: 40px; height: 40px;
-    font-size: 17px; line-height: 1; cursor: pointer; display: flex;
+    color: #2563eb; cursor: pointer; display: flex;
     align-items: center; justify-content: center;
   }
   .locate-btn:hover { background: #f8fafc; }
@@ -360,13 +360,51 @@
   });
   new LegendControl().addTo(map);
 
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  function createLocateIcon() {
+    var svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("width", "20");
+    svg.setAttribute("height", "20");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+
+    [[12, 1, 12, 4], [12, 20, 12, 23], [1, 12, 4, 12], [20, 12, 23, 12]].forEach(function (pts) {
+      var line = document.createElementNS(SVG_NS, "line");
+      line.setAttribute("x1", pts[0]);
+      line.setAttribute("y1", pts[1]);
+      line.setAttribute("x2", pts[2]);
+      line.setAttribute("y2", pts[3]);
+      line.setAttribute("stroke", "currentColor");
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("stroke-linecap", "round");
+      svg.appendChild(line);
+    });
+
+    var ring = document.createElementNS(SVG_NS, "circle");
+    ring.setAttribute("cx", "12");
+    ring.setAttribute("cy", "12");
+    ring.setAttribute("r", "6");
+    ring.setAttribute("stroke", "currentColor");
+    ring.setAttribute("stroke-width", "2");
+    svg.appendChild(ring);
+
+    var dot = document.createElementNS(SVG_NS, "circle");
+    dot.setAttribute("cx", "12");
+    dot.setAttribute("cy", "12");
+    dot.setAttribute("r", "2.5");
+    dot.setAttribute("fill", "currentColor");
+    svg.appendChild(dot);
+
+    return svg;
+  }
+
   var LocateControl = L.Control.extend({
     options: { position: "bottomleft" },
     onAdd: function () {
       var btn = L.DomUtil.create("button", "locate-btn");
       btn.type = "button";
       btn.title = "מרכז מפה במיקומי (Center map on my location)";
-      btn.textContent = "📍";
+      btn.appendChild(createLocateIcon());
       L.DomEvent.on(btn, "click", function (e) {
         L.DomEvent.stopPropagation(e);
         btn.disabled = true;

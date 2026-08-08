@@ -131,7 +131,7 @@
   var STATUS_ORDER = ["פנוי", "מעט", "מלא", "פעיל"];
 
   function normalizeLotName(name) {
-    return (name || "").replace(/[\s\-()]/g, "");
+    return String(name == null ? "" : name).replace(/[\s\-()]/g, "");
   }
 
   // Generated from ahuzot-parking-lots.csv (id/name/link scraped from
@@ -353,7 +353,10 @@
       var icon = L.divIcon({ html: html, className: "", iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -36] });
       var marker = L.marker([lot.lat, lot.lon], { icon: icon });
 
-      var officialLink = AHUZOT_LINKS[normalizeLotName(lot.name)];
+      var normalizedName = normalizeLotName(lot.name);
+      var officialLink = Object.prototype.hasOwnProperty.call(AHUZOT_LINKS, normalizedName)
+        ? AHUZOT_LINKS[normalizedName]
+        : undefined;
 
       var popupHtml =
         '<div class="popup-title">' + escapeHtml(lot.name || "Parking lot") + "</div>" +

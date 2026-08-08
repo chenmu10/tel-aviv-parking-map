@@ -28,7 +28,15 @@
     border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
     box-shadow: 0 8px 24px rgba(16,24,40,.12); padding: 9px 14px;
     font-weight: 700; font-size: 14px; color: #16181d; font-family: var(--font);
+    display: flex; align-items: center; gap: 6px; direction: rtl;
   }
+  .brand .info-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+    background: #eef1f5; color: #5b6472; font-size: 12px; font-weight: 700;
+    cursor: pointer; font-family: var(--font);
+  }
+  .brand .info-icon:hover { background: #e2e6eb; }
   .legend {
     background: rgba(255,255,255,.9); backdrop-filter: blur(10px);
     border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
@@ -45,23 +53,25 @@
   .legend.collapsed .legend-toggle .chevron { transform: rotate(-90deg); }
   .legend.collapsed .legend-rows { display: none; }
   .legend-rows { margin-top: 6px; }
-  .info-card {
-    background: rgba(255,255,255,.9); backdrop-filter: blur(10px);
-    border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(16,24,40,.12); padding: 10px 12px;
-    font-size: 12.5px; font-family: var(--font); color: #16181d;
-    margin-top: 8px;
+  #info-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,23,42,.45);
+    z-index: 2000; display: none; align-items: center; justify-content: center;
   }
-  .info-card .info-toggle {
-    display: flex; align-items: center; gap: 6px; cursor: pointer;
-    font-weight: 600; user-select: none;
+  #info-modal {
+    background: #fff; border-radius: 16px; padding: 20px 22px;
+    box-shadow: 0 20px 60px rgba(16,24,40,.35); font-family: var(--font);
+    max-width: 280px; width: calc(100% - 48px); text-align: center; position: relative;
   }
-  .info-card .info-toggle .chevron { transition: transform .15s ease; }
-  .info-card.collapsed .info-toggle .chevron { transform: rotate(-90deg); }
-  .info-card.collapsed .info-body { display: none; }
-  .info-card .info-body { margin-top: 6px; }
-  .info-card .info-body a { color: #2563eb; font-weight: 600; text-decoration: none; }
-  .info-card .info-body a:hover { text-decoration: underline; }
+  #info-modal .info-close {
+    position: absolute; top: 8px; right: 10px; border: none; background: none;
+    font-size: 18px; line-height: 1; cursor: pointer; color: #9aa2ad; padding: 4px;
+  }
+  #info-modal .info-close:hover { color: #16181d; }
+  #info-modal .info-name { font-weight: 700; font-size: 15px; color: #16181d; margin-bottom: 10px; }
+  #info-modal a {
+    display: inline-block; color: #2563eb; font-weight: 600; text-decoration: none; font-size: 13.5px;
+  }
+  #info-modal a:hover { text-decoration: underline; }
   .locate-btn {
     background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 50%;
     box-shadow: 0 8px 24px rgba(16,24,40,.12); width: 40px; height: 40px;
@@ -100,6 +110,14 @@
 
 <div id="map"></div>
 <div id="status-banner"></div>
+
+<div id="info-modal-backdrop">
+  <div id="info-modal">
+    <button type="button" class="info-close" aria-label="Close">&times;</button>
+    <div class="info-name">Contact Me</div>
+    <a href="https://www.linkedin.com/in/chen-m/" target="_blank" rel="noopener noreferrer">https://www.linkedin.com/in/chen-m/</a>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -240,52 +258,42 @@
   var markersLayer = L.layerGroup().addTo(map);
   var userLocationLayer = L.layerGroup().addTo(map);
 
+  var infoBackdrop = document.getElementById("info-modal-backdrop");
+  function openInfoModal() {
+    infoBackdrop.style.display = "flex";
+  }
+  function closeInfoModal() {
+    infoBackdrop.style.display = "none";
+  }
+  document.querySelector("#info-modal .info-close").addEventListener("click", closeInfoModal);
+  infoBackdrop.addEventListener("click", function (e) {
+    if (e.target === infoBackdrop) closeInfoModal();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeInfoModal();
+  });
+
   var BrandControl = L.Control.extend({
     options: { position: "topleft" },
     onAdd: function () {
       var div = L.DomUtil.create("div", "brand");
-      div.textContent = "חניוני אחוזת החוף תל אביב";
+      div.appendChild(document.createTextNode("חניוני אחוזת החוף תל אביב"));
+
+      var icon = document.createElement("span");
+      icon.className = "info-icon";
+      icon.textContent = "i";
+      icon.title = "About";
+      L.DomEvent.on(icon, "click", function (e) {
+        L.DomEvent.stopPropagation(e);
+        openInfoModal();
+      });
+      div.appendChild(icon);
+
+      L.DomEvent.disableClickPropagation(div);
       return div;
     }
   });
   new BrandControl().addTo(map);
-
-  var InfoControl = L.Control.extend({
-    options: { position: "topleft" },
-    onAdd: function () {
-      var div = L.DomUtil.create("div", "info-card collapsed");
-
-      var toggle = document.createElement("div");
-      toggle.className = "info-toggle";
-      var chevron = document.createElement("span");
-      chevron.className = "chevron";
-      chevron.textContent = "▾";
-      toggle.appendChild(chevron);
-      toggle.appendChild(document.createTextNode("About"));
-      div.appendChild(toggle);
-
-      var body = document.createElement("div");
-      body.className = "info-body";
-      body.appendChild(document.createTextNode("Made by Chen M."));
-      body.appendChild(document.createElement("br"));
-      var link = document.createElement("a");
-      link.href = "https://www.linkedin.com/in/chen-m/";
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = "LinkedIn ↗";
-      body.appendChild(link);
-      div.appendChild(body);
-
-      L.DomEvent.on(toggle, "click", function (e) {
-        L.DomEvent.stopPropagation(e);
-        div.classList.toggle("collapsed");
-      });
-      L.DomEvent.disableClickPropagation(div);
-
-      return div;
-    }
-  });
-  new InfoControl().addTo(map);
 
   var LegendControl = L.Control.extend({
     options: { position: "bottomright" },

@@ -45,6 +45,23 @@
   .legend.collapsed .legend-toggle .chevron { transform: rotate(-90deg); }
   .legend.collapsed .legend-rows { display: none; }
   .legend-rows { margin-top: 6px; }
+  .info-card {
+    background: rgba(255,255,255,.9); backdrop-filter: blur(10px);
+    border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(16,24,40,.12); padding: 10px 12px;
+    font-size: 12.5px; font-family: var(--font); color: #16181d;
+    margin-top: 8px;
+  }
+  .info-card .info-toggle {
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    font-weight: 600; user-select: none;
+  }
+  .info-card .info-toggle .chevron { transition: transform .15s ease; }
+  .info-card.collapsed .info-toggle .chevron { transform: rotate(-90deg); }
+  .info-card.collapsed .info-body { display: none; }
+  .info-card .info-body { margin-top: 6px; }
+  .info-card .info-body a { color: #2563eb; font-weight: 600; text-decoration: none; }
+  .info-card .info-body a:hover { text-decoration: underline; }
   .locate-btn {
     background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 50%;
     box-shadow: 0 8px 24px rgba(16,24,40,.12); width: 40px; height: 40px;
@@ -232,6 +249,43 @@
     }
   });
   new BrandControl().addTo(map);
+
+  var InfoControl = L.Control.extend({
+    options: { position: "topleft" },
+    onAdd: function () {
+      var div = L.DomUtil.create("div", "info-card collapsed");
+
+      var toggle = document.createElement("div");
+      toggle.className = "info-toggle";
+      var chevron = document.createElement("span");
+      chevron.className = "chevron";
+      chevron.textContent = "▾";
+      toggle.appendChild(chevron);
+      toggle.appendChild(document.createTextNode("About"));
+      div.appendChild(toggle);
+
+      var body = document.createElement("div");
+      body.className = "info-body";
+      body.appendChild(document.createTextNode("Made by Chen M."));
+      body.appendChild(document.createElement("br"));
+      var link = document.createElement("a");
+      link.href = "https://www.linkedin.com/in/chen-m/";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "LinkedIn ↗";
+      body.appendChild(link);
+      div.appendChild(body);
+
+      L.DomEvent.on(toggle, "click", function (e) {
+        L.DomEvent.stopPropagation(e);
+        div.classList.toggle("collapsed");
+      });
+      L.DomEvent.disableClickPropagation(div);
+
+      return div;
+    }
+  });
+  new InfoControl().addTo(map);
 
   var LegendControl = L.Control.extend({
     options: { position: "bottomright" },

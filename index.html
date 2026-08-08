@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tel Aviv Parking Map</title>
-<meta name="description" content="Live parking-lot availability for Tel Aviv's Ahuzot HaHof coastal parking lots, color-coded by status and updated in real time." />
+<title>חניוני אחוזת החוף תל אביב (Tel Aviv Parking Map)</title>
+<meta name="description" content="זמינות חניה בזמן אמת בחניוני אחוזות החוף בתל אביב, מסומן לפי סטטוס ומתעדכן בזמן אמת (Live parking-lot availability for Tel Aviv's coastal parking lots, updated in real time)." />
 
 <meta property="og:type" content="website" />
-<meta property="og:title" content="Tel Aviv Parking Map" />
-<meta property="og:description" content="Live parking-lot availability for Tel Aviv's Ahuzot HaHof coastal parking lots, color-coded by status and updated in real time." />
+<meta property="og:title" content="חניוני אחוזת החוף תל אביב (Tel Aviv Parking Map)" />
+<meta property="og:description" content="זמינות חניה בזמן אמת בחניוני אחוזות החוף בתל אביב, מסומן לפי סטטוס ומתעדכן בזמן אמת (Live parking-lot availability for Tel Aviv's coastal parking lots, updated in real time)." />
 <meta property="og:url" content="https://chenmu10.github.io/tel-aviv-parking-map/" />
 <meta property="og:image" content="https://chenmu10.github.io/tel-aviv-parking-map/icon-512.png" />
 
 <meta name="twitter:card" content="summary" />
-<meta name="twitter:title" content="Tel Aviv Parking Map" />
-<meta name="twitter:description" content="Live parking-lot availability for Tel Aviv's Ahuzot HaHof coastal parking lots, color-coded by status and updated in real time." />
+<meta name="twitter:title" content="חניוני אחוזת החוף תל אביב (Tel Aviv Parking Map)" />
+<meta name="twitter:description" content="זמינות חניה בזמן אמת בחניוני אחוזות החוף בתל אביב, מסומן לפי סטטוס ומתעדכן בזמן אמת (Live parking-lot availability for Tel Aviv's coastal parking lots, updated in real time)." />
 <meta name="twitter:image" content="https://chenmu10.github.io/tel-aviv-parking-map/icon-512.png" />
 
 <link rel="manifest" href="manifest.json" />
@@ -23,7 +23,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-title" content="TLV Parking" />
+<meta name="apple-mobile-web-app-title" content="חניית ת״א" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -133,8 +133,8 @@
 
 <div id="info-modal-backdrop">
   <div id="info-modal">
-    <button type="button" class="info-close" aria-label="Close">&times;</button>
-    <div class="info-name">Contact Me</div>
+    <button type="button" class="info-close" aria-label="סגור (Close)">&times;</button>
+    <div class="info-name">צור קשר (Contact Me)</div>
     <a href="https://www.linkedin.com/in/chen-m/" target="_blank" rel="noopener noreferrer">LinkedIn ↗</a>
   </div>
 </div>
@@ -152,13 +152,13 @@
   var REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 
   var STATUS_INFO = {
-    "פנוי":  { hex: "#16a34a", label: "Available (פנוי)" },
-    "מעט":  { hex: "#d97706", label: "Few spaces (מעט)" },
-    "מלא":  { hex: "#dc2626", label: "Full (מלא)" },
-    "סגור": { hex: "#6b7280", label: "Closed (סגור)" },
-    "פעיל": { hex: "#64748b", label: "Status unknown (פעיל)" }
+    "פנוי":  { hex: "#16a34a", label: "פנוי (Available)" },
+    "מעט":  { hex: "#d97706", label: "מעט מקומות (Few spaces)" },
+    "מלא":  { hex: "#dc2626", label: "מלא (Full)" },
+    "סגור": { hex: "#6b7280", label: "סגור (Closed)" },
+    "פעיל": { hex: "#64748b", label: "לא ידוע (Status unknown)" }
   };
-  var DEFAULT_STATUS = { hex: "#64748b", label: "Status unknown" };
+  var DEFAULT_STATUS = { hex: "#64748b", label: "לא ידוע (Status unknown)" };
   var STATUS_ORDER = ["פנוי", "מעט", "מלא", "פעיל"];
 
   function normalizeLotName(name) {
@@ -304,7 +304,7 @@
       var icon = document.createElement("span");
       icon.className = "info-icon";
       icon.textContent = "i";
-      icon.title = "About";
+      icon.title = "אודות (About)";
       L.DomEvent.on(icon, "click", function (e) {
         L.DomEvent.stopPropagation(e);
         openInfoModal();
@@ -328,7 +328,7 @@
       chevron.className = "chevron";
       chevron.textContent = "▾";
       toggle.appendChild(chevron);
-      toggle.appendChild(document.createTextNode("Legend"));
+      toggle.appendChild(document.createTextNode("מקרא (Legend)"));
       div.appendChild(toggle);
 
       var rows = document.createElement("div");
@@ -364,7 +364,7 @@
     onAdd: function () {
       var btn = L.DomUtil.create("button", "locate-btn");
       btn.type = "button";
-      btn.title = "Center map on my location";
+      btn.title = "מרכז מפה במיקומי (Center map on my location)";
       btn.textContent = "📍";
       L.DomEvent.on(btn, "click", function (e) {
         L.DomEvent.stopPropagation(e);
@@ -389,7 +389,7 @@
 
   map.on("locationerror", function (e) {
     locateControl._btn.disabled = false;
-    showBanner("Couldn't get your location — " + e.message);
+    showBanner("לא ניתן לאתר את המיקום שלך (Couldn't get your location) — " + e.message);
   });
 
   // Keeps popups clear of the fixed corner controls when Leaflet auto-pans
@@ -410,7 +410,7 @@
   }
 
   function formatUpdatedAt(epochMs) {
-    if (!epochMs) return "unknown";
+    if (!epochMs) return "לא ידוע (unknown)";
     // epochMs's Y/M/D h:m:s components are already Israel wall-clock time,
     // just mislabeled as UTC ms by the source API.
     // Formatting with timeZone: 'UTC' reads those components back out as-is;
@@ -451,12 +451,12 @@
   function formatAgo(epochMs) {
     if (!epochMs) return "";
     var minutes = Math.floor(Math.max(0, israelNowMs() - epochMs) / 60000);
-    if (minutes < 1) return "just now";
-    if (minutes < 60) return minutes + " min ago";
+    if (minutes < 1) return "עכשיו (just now)";
+    if (minutes < 60) return "לפני " + minutes + " דקות (" + minutes + " min ago)";
     var hours = Math.floor(minutes / 60);
-    if (hours < 24) return hours + " hr ago";
+    if (hours < 24) return "לפני " + hours + " שעות (" + hours + " hr ago)";
     var days = Math.floor(hours / 24);
-    return days + " day" + (days === 1 ? "" : "s") + " ago";
+    return "לפני " + days + " ימים (" + days + " day" + (days === 1 ? "" : "s") + " ago)";
   }
 
   function escapeHtml(str) {
@@ -497,7 +497,7 @@
       var destinationParam = encodeURIComponent(destination);
 
       var popupHtml =
-        '<div class="popup-title">' + escapeHtml(lot.name || "Parking lot") + "</div>" +
+        '<div class="popup-title">' + escapeHtml(lot.name || "חניון (Parking lot)") + "</div>" +
         '<div class="popup-addr">' + escapeHtml(lot.address || "") + "</div>" +
         '<div class="popup-status" style="background:' + info.hex + '1a;color:' + info.hex + '">' + info.label + "</div>" +
         '<div class="popup-nav">' +
@@ -505,9 +505,9 @@
           '<a href="https://www.google.com/maps/dir/?api=1&destination=' + destinationParam + '" target="_blank" rel="noopener noreferrer">Google Maps ↗</a>' +
         "</div>" +
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
-        (lot.tariffNight ? '<div class="popup-row">Night: ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
-        (lot.capacity ? '<div class="popup-row">Capacity: ' + escapeHtml(lot.capacity) + "</div>" : "") +
-        '<div class="popup-updated">Updated: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) +
+        (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
+        (lot.capacity ? '<div class="popup-row">קיבולת (Capacity): ' + escapeHtml(lot.capacity) + "</div>" : "") +
+        '<div class="popup-updated">עודכן (Updated): ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) +
           (lot.updatedAt ? ' (' + escapeHtml(formatAgo(lot.updatedAt)) + ')' : '') + "</div>" +
         (officialLink ? '<div class="popup-row"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(officialLink) + '</a></div>' : "");
 
@@ -549,7 +549,7 @@
       })
       .catch(function (err) {
         console.error("Failed to load parking data:", err);
-        showBanner("Couldn't refresh parking data, will retry — " + err.message);
+        showBanner("לא ניתן לרענן את נתוני החניה, ננסה שוב (Couldn't refresh parking data, will retry) — " + err.message);
       });
   }
 

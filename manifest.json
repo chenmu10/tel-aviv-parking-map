@@ -1,7 +1,8 @@
 {
-  "name": "Tel Aviv Parking Map",
-  "short_name": "TLV Parking",
-  "description": "Live parking-lot availability for Tel Aviv's Ahuzot HaHof coastal lots",
+  "name": "חניוני אחוזת החוף תל אביב (Tel Aviv Parking Map)",
+  "short_name": "חניית ת״א",
+  "description": "זמינות חניה בזמן אמת בחניוני אחוזות החוף בתל אביב (Live parking-lot availability for Tel Aviv's coastal lots)",
+  "lang": "he",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#eef1f5",

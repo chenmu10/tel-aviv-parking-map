@@ -252,6 +252,14 @@
   });
   var refreshControl = new RefreshControl().addTo(map);
 
+  // Keeps popups clear of the fixed corner controls when Leaflet auto-pans
+  // them into view -- without this, a popup near the top can end up under
+  // the zoom/refresh controls, and one near the bottom under the legend.
+  var POPUP_AUTOPAN_PADDING = {
+    autoPanPaddingTopLeft: L.point(16, 140),
+    autoPanPaddingBottomRight: L.point(190, 160)
+  };
+
   var banner = document.getElementById("status-banner");
   function showBanner(msg) {
     banner.textContent = msg;
@@ -351,7 +359,7 @@
           (lot.updatedAt ? ' (' + escapeHtml(formatAgo(lot.updatedAt)) + ')' : '') + "</div>" +
         (officialLink ? '<div class="popup-row"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(officialLink) + '</a></div>' : "");
 
-      marker.bindPopup(popupHtml);
+      marker.bindPopup(popupHtml, POPUP_AUTOPAN_PADDING);
       markersLayer.addLayer(marker);
     });
   }

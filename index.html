@@ -76,6 +76,42 @@
 
   var REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 
+  var STALE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+
+  // tr_status_chenyon encodes Israel local wall-clock time as if it were
+  // UTC epoch ms (verified against the live API and against ahuzot.co.il's
+  // own lot pages). To compare against it, "now" must be computed the same
+  // way -- not with Date.now(), which is true UTC and would be off by
+  // Israel's UTC offset (which itself changes across DST).
+  function israelNowMs() {
+    var parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Jerusalem',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false
+    }).formatToParts(new Date());
+
+    var p = {};
+    parts.forEach(function (part) { p[part.type] = part.value; });
+
+    // Some environments format midnight as hour "24" under hour12:false.
+    var hour = p.hour === '24' ? 0 : parseInt(p.hour, 10);
+
+    return Date.UTC(
+      parseInt(p.year, 10),
+      parseInt(p.month, 10) - 1,
+      parseInt(p.day, 10),
+      hour,
+      parseInt(p.minute, 10),
+      parseInt(p.second, 10)
+    );
+  }
+
+  function isStale(lot) {
+    if (!lot.updatedAt) return false;
+    return israelNowMs() - lot.updatedAt > STALE_THRESHOLD_MS;
+  }
+
   var STATUS_INFO = {
     "פנוי":  { hex: "#16a34a", label: "Available (פנוי)" },
     "מעט":  { hex: "#d97706", label: "Few spaces (מעט)" },

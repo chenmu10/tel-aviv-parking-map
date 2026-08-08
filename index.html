@@ -174,6 +174,16 @@
 
         div.appendChild(row);
       });
+
+      var staleRow = document.createElement("div");
+      staleRow.className = "row";
+      var staleDot = document.createElement("span");
+      staleDot.className = "dot";
+      staleDot.style.background = "#f59e0b";
+      staleRow.appendChild(staleDot);
+      staleRow.appendChild(document.createTextNode("Possibly stale (>30 min)"));
+      div.appendChild(staleRow);
+
       return div;
     }
   });
@@ -207,7 +217,12 @@
 
   function formatUpdatedAt(epochMs) {
     if (!epochMs) return "unknown";
-    return new Date(epochMs).toLocaleString('en-GB', { timeZone: 'UTC' });
+    // epochMs's Y/M/D h:m:s components are already Israel wall-clock time
+    // (see israelNowMs() above), just mislabeled as UTC ms by the source API.
+    // Formatting with timeZone: 'UTC' reads those components back out as-is;
+    // do NOT switch this to plain toLocaleString() -- that would re-apply the
+    // browser's local offset on top and reintroduce the ~3 hour display bug.
+    return new Date(epochMs).toLocaleString('en-GB', { timeZone: 'UTC' }) + " (Israel time)";
   }
 
   function escapeHtml(str) {

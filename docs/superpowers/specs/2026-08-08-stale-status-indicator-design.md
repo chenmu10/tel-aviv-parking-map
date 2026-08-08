@@ -127,13 +127,21 @@ and `isStale()` are comparing against.
 No test framework exists in this static-page project (single `index.html`,
 no build step). Verification is manual:
 
-1. In the browser console, call `isStale({ updatedAt: <fabricated old ms> })`
-   and `isStale({ updatedAt: <fabricated fresh ms> })` and confirm the
-   booleans are correct.
-2. With the page loaded, temporarily patch one entry of the in-memory lots
-   data via the console to an old `updatedAt` and re-render, confirming the
-   badge appears on that marker and the popup shows the warning line.
-   Revert by reloading the page — no debug code is left in `index.html`.
+1. `isStale`, `israelNowMs`, and the lots data are private to the page's IIFE
+   and intentionally not exposed on `window` (see Global Constraints), so
+   they can't be reached from the browser console. Instead, extract the
+   actual function bodies (`israelNowMs`, `isStale`, and — for the render
+   path — `renderLots` plus its dependencies) from `index.html` into a
+   scratch Node script, stub out the Leaflet calls, and invoke them directly
+   with fabricated fresh/stale `updatedAt` values to confirm `isStale()`
+   returns the right boolean and the generated HTML includes/omits the
+   badge and warning line as expected. Delete the scratch script afterward.
+2. To see the indicator live in the browser, temporarily lower
+   `STALE_THRESHOLD_MS` (e.g. to `0`) so every lot renders as stale, serve
+   the page locally, and confirm the badge appears on markers and the
+   warning line appears in popups. Revert `STALE_THRESHOLD_MS` to
+   `30 * 60 * 1000` before committing — no debug code is left in
+   `index.html`.
 3. Cross-check a live lot's popup "Updated: ..." time against its
    corresponding page on ahuzot.co.il (`/Parking/ParkingDetails/?ID=<n>`)
    and confirm they now match (within normal fetch-timing lag), instead of

@@ -162,7 +162,7 @@
     "סגור": { hex: "#6b7280", label: "סגור (Closed)" },
     "פעיל": { hex: "#64748b", label: "לא ידוע (Status unknown)" }
   };
-  var DEFAULT_STATUS = { hex: "#64748b", label: "לא ידוע (Status unknown)" };
+  var DEFAULT_STATUS = STATUS_INFO["פעיל"];
   var STATUS_ORDER = ["פנוי", "מעט", "מלא", "פעיל"];
 
   function normalizeLotName(name) {
@@ -422,6 +422,7 @@
 
   map.on("locationfound", function (e) {
     locateControl._btn.disabled = false;
+    hideBanner("geo");
     userLocationLayer.clearLayers();
     L.marker(e.latlng, {
       icon: L.divIcon({ className: "", html: '<div class="user-location-dot"></div>', iconSize: [14, 14] }),
@@ -431,7 +432,7 @@
 
   map.on("locationerror", function (e) {
     locateControl._btn.disabled = false;
-    showBanner("לא ניתן לאתר את המיקום שלך (Couldn't get your location) — " + e.message);
+    showBanner("לא ניתן לאתר את המיקום שלך (Couldn't get your location) — " + e.message, "geo");
   });
 
   // Keeps popups clear of the fixed corner controls when Leaflet auto-pans
@@ -442,12 +443,16 @@
     autoPanPaddingBottomRight: L.point(190, 160)
   };
 
+  // Tagged with a source ("fetch"/"geo") so one channel's success can't
+  // clobber an unrelated error from the other channel still on screen.
   var banner = document.getElementById("status-banner");
-  function showBanner(msg) {
+  function showBanner(msg, source) {
     banner.textContent = msg;
+    banner.dataset.source = source;
     banner.style.display = "block";
   }
-  function hideBanner() {
+  function hideBanner(source) {
+    if (banner.dataset.source && banner.dataset.source !== source) return;
     banner.style.display = "none";
   }
 
@@ -490,9 +495,9 @@
     );
   }
 
-  function formatAgo(epochMs) {
+  function formatAgo(epochMs, nowMs) {
     if (!epochMs) return "";
-    var minutes = Math.floor(Math.max(0, israelNowMs() - epochMs) / 60000);
+    var minutes = Math.floor(Math.max(0, nowMs - epochMs) / 60000);
     if (minutes < 1) return "עכשיו";
     if (minutes < 60) return "לפני " + minutes + " דקות";
     var hours = Math.floor(minutes / 60);
@@ -511,8 +516,9 @@
 
   function renderLots(lots) {
     markersLayer.clearLayers();
+    var nowMs = israelNowMs();
     lots.forEach(function (lot) {
-      if (typeof lot.lat !== "number" || typeof lot.lon !== "number") return;
+      if (!Number.isFinite(lot.lat) || !Number.isFinite(lot.lon)) return;
       if ((lot.status || "").trim() === "סגור") return;
       var info = statusInfo(lot.status);
 
@@ -550,7 +556,7 @@
         (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
         (lot.capacity ? '<div class="popup-row">קיבולת (Capacity): ' + escapeHtml(lot.capacity) + "</div>" : "") +
         '<div class="popup-updated">עודכן: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) +
-          (lot.updatedAt ? ' (' + escapeHtml(formatAgo(lot.updatedAt)) + ')' : '') + "</div>" +
+          (lot.updatedAt ? ' (' + escapeHtml(formatAgo(lot.updatedAt, nowMs)) + ')' : '') + "</div>" +
         (officialLink ? '<div class="popup-row"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(officialLink) + '</a></div>' : "");
 
       marker.bindPopup(popupHtml, POPUP_AUTOPAN_PADDING);
@@ -587,11 +593,11 @@
         if (json.error) throw new Error(json.error.message || "API error");
         var lots = parseLots(json);
         renderLots(lots);
-        hideBanner();
+        hideBanner("fetch");
       })
       .catch(function (err) {
         console.error("Failed to load parking data:", err);
-        showBanner("לא ניתן לרענן את נתוני החניה, ננסה שוב (Couldn't refresh parking data, will retry) — " + err.message);
+        showBanner("לא ניתן לרענן את נתוני החניה, ננסה שוב (Couldn't refresh parking data, will retry) — " + err.message, "fetch");
       });
   }
 

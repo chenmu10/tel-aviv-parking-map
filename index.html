@@ -304,7 +304,7 @@
         '<div class="popup-title">' + escapeHtml(lot.name || "Parking lot") + "</div>" +
         '<div class="popup-addr">' + escapeHtml(lot.address || "") + "</div>" +
         '<div class="popup-status" style="background:' + info.hex + '1a;color:' + info.hex + '">' + info.label + "</div>" +
-        (lot.tariffDay ? '<div class="popup-row">Day: ' + escapeHtml(lot.tariffDay) + "</div>" : "") +
+        (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">Night: ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
         (lot.capacity ? '<div class="popup-row">Capacity: ' + escapeHtml(lot.capacity) + "</div>" : "") +
         '<div class="popup-updated">Updated: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) + "</div>" +

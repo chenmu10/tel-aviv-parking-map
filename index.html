@@ -64,6 +64,11 @@
   .popup-addr { color: #5b6472; font-size: 12.5px; margin: 2px 0 8px; }
   .popup-status { display: inline-block; padding: 3px 9px; border-radius: 999px; font-weight: 700; font-size: 11.5px; margin-bottom: 6px; }
   .popup-row { font-size: 12.5px; margin: 2px 0; color: #16181d; }
+  .popup-nav { display: flex; gap: 10px; margin: 6px 0; }
+  .popup-nav a {
+    font-size: 12px; font-weight: 600; text-decoration: none; color: #2563eb;
+  }
+  .popup-nav a:hover { text-decoration: underline; }
   .popup-updated { font-size: 11px; color: #9aa2ad; margin-top: 6px; }
 </style>
 </head>
@@ -379,6 +384,10 @@
         '<div class="popup-title">' + escapeHtml(lot.name || "Parking lot") + "</div>" +
         '<div class="popup-addr">' + escapeHtml(lot.address || "") + "</div>" +
         '<div class="popup-status" style="background:' + info.hex + '1a;color:' + info.hex + '">' + info.label + "</div>" +
+        '<div class="popup-nav">' +
+          '<a href="https://waze.com/ul?ll=' + lot.lat + ',' + lot.lon + '&navigate=yes" target="_blank" rel="noopener noreferrer">Waze ↗</a>' +
+          '<a href="https://www.google.com/maps/dir/?api=1&destination=' + lot.lat + ',' + lot.lon + '" target="_blank" rel="noopener noreferrer">Google Maps ↗</a>' +
+        "</div>" +
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">Night: ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
         (lot.capacity ? '<div class="popup-row">Capacity: ' + escapeHtml(lot.capacity) + "</div>" : "") +

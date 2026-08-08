@@ -2,10 +2,8 @@
 
 A single static page showing live parking-lot availability for Tel Aviv's
 Ahuzot HaHof coastal parking lots on a map, color-coded by status
-(available / few spaces / full / closed). Lots also show an amber badge
-when their data hasn't refreshed in over 30 minutes, flagging it as
-possibly stale. A lot's popup also links to its official ahuzot.co.il page
-when one can be matched by name.
+(available / few spaces / full / closed). A lot's popup also links to its
+official ahuzot.co.il page when one can be matched by name.
 
 Live: https://chenmu10.github.io/tel-aviv-parking-map/ _(once GitHub Pages is enabled on the repo)_
 

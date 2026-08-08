@@ -37,6 +37,14 @@
   }
   .legend .row { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
   .legend .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .legend-toggle {
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    font-weight: 600; user-select: none;
+  }
+  .legend-toggle .chevron { transition: transform .15s ease; }
+  .legend.collapsed .legend-toggle .chevron { transform: rotate(-90deg); }
+  .legend.collapsed .legend-rows { display: none; }
+  .legend-rows { margin-top: 6px; }
   .refresh-btn {
     background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
     box-shadow: 0 8px 24px rgba(16,24,40,.12); padding: 8px 14px;
@@ -215,7 +223,19 @@
   var LegendControl = L.Control.extend({
     options: { position: "bottomright" },
     onAdd: function () {
-      var div = L.DomUtil.create("div", "legend");
+      var div = L.DomUtil.create("div", "legend collapsed");
+
+      var toggle = document.createElement("div");
+      toggle.className = "legend-toggle";
+      var chevron = document.createElement("span");
+      chevron.className = "chevron";
+      chevron.textContent = "▾";
+      toggle.appendChild(chevron);
+      toggle.appendChild(document.createTextNode("Legend"));
+      div.appendChild(toggle);
+
+      var rows = document.createElement("div");
+      rows.className = "legend-rows";
       STATUS_ORDER.forEach(function (key) {
         var info = STATUS_INFO[key];
         var row = document.createElement("div");
@@ -227,8 +247,15 @@
         row.appendChild(dot);
         row.appendChild(document.createTextNode(info.label));
 
-        div.appendChild(row);
+        rows.appendChild(row);
       });
+      div.appendChild(rows);
+
+      L.DomEvent.on(toggle, "click", function (e) {
+        L.DomEvent.stopPropagation(e);
+        div.classList.toggle("collapsed");
+      });
+      L.DomEvent.disableClickPropagation(div);
 
       return div;
     }

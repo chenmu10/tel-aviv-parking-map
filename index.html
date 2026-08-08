@@ -380,13 +380,21 @@
         ? AHUZOT_LINKS[normalizedName]
         : undefined;
 
+      // Prefer the lot's own street address for navigation, so the maps app
+      // shows a recognizable destination the person can double-check against
+      // this popup, instead of an opaque "32.08, 34.77" coordinate pair.
+      // Fall back to lat/lon only for the rare lot missing an address.
+      var hasAddress = !!(lot.address && lot.address.trim());
+      var destination = hasAddress ? lot.address : (lot.lat + "," + lot.lon);
+      var destinationParam = encodeURIComponent(destination);
+
       var popupHtml =
         '<div class="popup-title">' + escapeHtml(lot.name || "Parking lot") + "</div>" +
         '<div class="popup-addr">' + escapeHtml(lot.address || "") + "</div>" +
         '<div class="popup-status" style="background:' + info.hex + '1a;color:' + info.hex + '">' + info.label + "</div>" +
         '<div class="popup-nav">' +
-          '<a href="https://waze.com/ul?ll=' + lot.lat + ',' + lot.lon + '&navigate=yes" target="_blank" rel="noopener noreferrer">Waze ↗</a>' +
-          '<a href="https://www.google.com/maps/dir/?api=1&destination=' + lot.lat + ',' + lot.lon + '" target="_blank" rel="noopener noreferrer">Google Maps ↗</a>' +
+          '<a href="https://waze.com/ul?' + (hasAddress ? "q=" : "ll=") + destinationParam + '&navigate=yes" target="_blank" rel="noopener noreferrer">Waze ↗</a>' +
+          '<a href="https://www.google.com/maps/dir/?api=1&destination=' + destinationParam + '" target="_blank" rel="noopener noreferrer">Google Maps ↗</a>' +
         "</div>" +
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">Night: ' + escapeHtml(lot.tariffNight) + "</div>" : "") +

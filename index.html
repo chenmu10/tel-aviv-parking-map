@@ -125,10 +125,10 @@
     "מעט":  { hex: "#d97706", label: "Few spaces (מעט)" },
     "מלא":  { hex: "#dc2626", label: "Full (מלא)" },
     "סגור": { hex: "#6b7280", label: "Closed (סגור)" },
-    "פעיל": { hex: "#7c3aed", label: "Status unknown (פעיל)" }
+    "פעיל": { hex: "#64748b", label: "Status unknown (פעיל)" }
   };
-  var DEFAULT_STATUS = { hex: "#7c3aed", label: "Status unknown" };
-  var STATUS_ORDER = ["פנוי", "מעט", "מלא", "סגור", "פעיל"];
+  var DEFAULT_STATUS = { hex: "#64748b", label: "Status unknown" };
+  var STATUS_ORDER = ["פנוי", "מעט", "מלא", "פעיל"];
 
   function statusInfo(rawStatus) {
     var key = (rawStatus || "").trim();
@@ -237,6 +237,7 @@
     markersLayer.clearLayers();
     lots.forEach(function (lot) {
       if (typeof lot.lat !== "number" || typeof lot.lon !== "number") return;
+      if ((lot.status || "").trim() === "סגור") return;
       var info = statusInfo(lot.status);
       var stale = isStale(lot);
       var badgeHtml = stale

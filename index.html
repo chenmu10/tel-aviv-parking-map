@@ -120,10 +120,10 @@
     font-family: var(--font); line-height: 1.3; white-space: nowrap;
   }
   .discount-badge.tier-small { top: -5px; right: -15px; font-size: 8px; padding: 1px 4px; background: #5f5e5a; }
-  .discount-badge.tier-big { top: -9px; right: -21px; font-size: 11px; padding: 2px 6px; background: #854f0b; color: #faeeda; }
+  .discount-badge.tier-big { top: -5px; right: -15px; font-size: 8px; padding: 1px 4px; background: #ede9fe; color: #5b21b6; }
   .legend-badge-sample {
     display: inline-block; border-radius: 999px; font-size: 10px; font-weight: 500;
-    padding: 1px 6px; background: #854f0b; color: #faeeda; flex-shrink: 0;
+    padding: 1px 6px; background: #ede9fe; color: #5b21b6; flex-shrink: 0;
   }
 
   .lot-label {
@@ -292,12 +292,9 @@
   // The GIS feed's own tariff-notes text (hearot_taarif) drifts out of sync
   // with the real discount (e.g. it said 75% for lot 42/"שרתון" when
   // ahuzot.co.il's own page said 50%). Keyed by ahuzot.co.il ID, this is a
-  // one-time snapshot of the "resident" field from
-  // https://ahuzat-mirror.dorkokotek9.workers.dev/all (a Cloudflare Worker
-  // built by github.com/the-beach-mansions that mirrors ahuzot.co.il's own
-  // text, precisely because the GIS notes field isn't reliable). Resident
-  // discounts change rarely, so this is refreshed by hand occasionally
-  // rather than fetched live; re-pull that endpoint to update it.
+  // one-time snapshot of each lot's actual resident discount taken directly
+  // from ahuzot.co.il. Resident discounts change rarely, so this is
+  // refreshed by hand occasionally rather than fetched live.
   var RESIDENT_DISCOUNT_BY_AHUZOT_ID = {
     1: 75, 2: 50, 3: 50, 4: 75, 7: 50, 8: 75, 10: 50, 12: 75, 13: 75, 15: 75,
     16: 75, 18: 75, 19: 75, 20: 75, 21: 75, 23: 75, 24: 50, 25: 75, 26: 75,
@@ -691,6 +688,7 @@
         var lots = parseLots(json);
         renderLots(lots);
         hideBanner("fetch");
+        hideBanner("load");
       })
       .catch(function (err) {
         console.error("Failed to load parking data:", err);
@@ -719,6 +717,7 @@
     }
   });
 
+  showBanner("טוען חניונים... (Loading parking lots…)", "load");
   loadData();
   startPolling();
 })();

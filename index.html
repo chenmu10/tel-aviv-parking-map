@@ -115,6 +115,16 @@
     position: absolute; top: 5px; left: 0; width: 30px; text-align: center;
     font-family: var(--font); font-weight: 800; font-size: 12px;
   }
+  .discount-badge {
+    position: absolute; border-radius: 999px; color: #fff; font-weight: 500;
+    font-family: var(--font); line-height: 1.3; white-space: nowrap;
+  }
+  .discount-badge.tier-small { top: -5px; right: -15px; font-size: 8px; padding: 1px 4px; background: #5f5e5a; }
+  .discount-badge.tier-big { top: -9px; right: -21px; font-size: 11px; padding: 2px 6px; background: #854f0b; color: #faeeda; }
+  .legend-badge-sample {
+    display: inline-block; border-radius: 999px; font-size: 10px; font-weight: 500;
+    padding: 1px 6px; background: #854f0b; color: #faeeda; flex-shrink: 0;
+  }
 
   .lot-label {
     display: none; background: transparent; border: none; box-shadow: none; padding: 0;
@@ -162,7 +172,7 @@
 (function () {
   var API_URL = "https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/970/query" +
     "?where=1%3D1" +
-    "&outFields=oid_hof,shem_chenyon,ktovet,lon,lat,status_chenyon,tr_status_chenyon,mispar_mekomot_bchenyon,taarif_yom,taarif_layla" +
+    "&outFields=oid_hof,shem_chenyon,ktovet,lon,lat,status_chenyon,tr_status_chenyon,mispar_mekomot_bchenyon,taarif_yom,taarif_layla,hearot_taarif" +
     "&returnGeometry=false" +
     "&f=json";
 
@@ -279,6 +289,25 @@
     "סוללים": 140
   };
 
+  // The GIS feed's own tariff-notes text (hearot_taarif) drifts out of sync
+  // with the real discount (e.g. it said 75% for lot 42/"שרתון" when
+  // ahuzot.co.il's own page said 50%). Keyed by ahuzot.co.il ID, this is a
+  // one-time snapshot of the "resident" field from
+  // https://ahuzat-mirror.dorkokotek9.workers.dev/all (a Cloudflare Worker
+  // built by github.com/the-beach-mansions that mirrors ahuzot.co.il's own
+  // text, precisely because the GIS notes field isn't reliable). Resident
+  // discounts change rarely, so this is refreshed by hand occasionally
+  // rather than fetched live; re-pull that endpoint to update it.
+  var RESIDENT_DISCOUNT_BY_AHUZOT_ID = {
+    1: 75, 2: 50, 3: 50, 4: 75, 7: 50, 8: 75, 10: 50, 12: 75, 13: 75, 15: 75,
+    16: 75, 18: 75, 19: 75, 20: 75, 21: 75, 23: 75, 24: 50, 25: 75, 26: 75,
+    28: 75, 29: 75, 31: 75, 32: 75, 33: 75, 34: 75, 37: 75, 38: 75, 39: 75,
+    40: 75, 41: 75, 42: 50, 44: 75, 45: 50, 48: 50, 50: 50, 53: 50, 93: 75,
+    94: 75, 95: 50, 96: 50, 98: 75, 99: 75, 108: 50, 114: 50, 119: 75,
+    120: 75, 121: 50, 122: 75, 123: 75, 124: 75, 126: 75, 127: 75, 129: 75,
+    131: 75, 132: 75, 134: 75, 135: 75, 137: 75, 140: 75
+  };
+
   function statusInfo(rawStatus) {
     var key = (rawStatus || "").trim();
     return STATUS_INFO[key] || DEFAULT_STATUS;
@@ -348,7 +377,7 @@
   var LegendControl = L.Control.extend({
     options: { position: "bottomright" },
     onAdd: function () {
-      var div = L.DomUtil.create("div", "legend collapsed");
+      var div = L.DomUtil.create("div", "legend");
 
       var toggle = document.createElement("div");
       toggle.className = "legend-toggle";
@@ -374,6 +403,16 @@
 
         rows.appendChild(row);
       });
+
+      var discountRow = document.createElement("div");
+      discountRow.className = "row";
+      var badgeSample = document.createElement("span");
+      badgeSample.className = "legend-badge-sample";
+      badgeSample.textContent = "-75%";
+      discountRow.appendChild(badgeSample);
+      discountRow.appendChild(document.createTextNode("הנחת תושב (Resident discount)"));
+      rows.appendChild(discountRow);
+
       div.appendChild(rows);
 
       L.DomEvent.on(toggle, "click", function (e) {
@@ -546,19 +585,33 @@
       if ((lot.status || "").trim() === "סגור") return;
       var info = statusInfo(lot.status);
 
+      var normalizedName = normalizeLotName(lot.name);
+      var ahuzotId = Object.prototype.hasOwnProperty.call(AHUZOT_LINKS, normalizedName)
+        ? AHUZOT_LINKS[normalizedName]
+        : undefined;
+      var officialLink = ahuzotId ? AHUZOT_LINK_BASE + ahuzotId : undefined;
+
+      // The GIS "tariff notes" field (hearot_taarif) is free text the
+      // municipality doesn't always keep in sync with the real discount, so
+      // prefer a snapshot of ahuzot.co.il's own numbers (see RESIDENT_DISCOUNT_BY_AHUZOT_ID's
+      // comment) and only fall back to parsing the GIS text for lots that
+      // snapshot doesn't cover.
+      var discountPct = (ahuzotId && RESIDENT_DISCOUNT_BY_AHUZOT_ID[ahuzotId]) || lot.residentDiscountPct;
+      var discountBadge = "";
+      if (discountPct) {
+        var discountTier = discountPct >= 60 ? "tier-big" : "tier-small";
+        discountBadge = '<span class="discount-badge ' + discountTier + '">-' + discountPct + '%</span>';
+      }
+
       var html =
         '<div class="pin"><svg width="30" height="40" viewBox="0 0 30 40">' +
         '<path d="M15 0C6.7 0 0 6.7 0 15c0 10 15 25 15 25s15-15 15-25C30 6.7 23.3 0 15 0z" fill="' + info.hex + '"/>' +
         '<circle cx="15" cy="15" r="7" fill="#fff"/></svg>' +
         '<span class="letter" style="color:' + info.hex + '">P</span>' +
+        discountBadge +
         '</div>';
       var icon = L.divIcon({ html: html, className: "", iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -36] });
       var marker = L.marker([lot.lat, lot.lon], { icon: icon });
-
-      var normalizedName = normalizeLotName(lot.name);
-      var officialLink = Object.prototype.hasOwnProperty.call(AHUZOT_LINKS, normalizedName)
-        ? AHUZOT_LINK_BASE + AHUZOT_LINKS[normalizedName]
-        : undefined;
 
       // Always navigate by lat/lon, not the lot's street address: addresses
       // like "הנמל 1" are ambiguous (e.g. Tel Aviv Port vs. Jaffa Port) and
@@ -597,6 +650,16 @@
     });
   }
 
+  // hearot_taarif is a free-text tariff-notes field; residents' discounts are
+  // mentioned in it with inconsistent phrasing (e.g. "הנחת תושב בסך 75%
+  // מתעריף החניון", "75% הנחה לתושבי תל-אביב יפו"). There's no dedicated
+  // field, so pull the percentage out of any note that mentions a discount.
+  function parseResidentDiscountPct(note) {
+    if (!note || note.indexOf("הנח") === -1) return null;
+    var m = /(\d+)\s*%/.exec(note);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
   function parseLots(json) {
     if (!json || !Array.isArray(json.features)) return [];
     return json.features.map(function (f) {
@@ -611,7 +674,8 @@
         updatedAt: a.tr_status_chenyon,
         capacity: a.mispar_mekomot_bchenyon,
         tariffDay: a.taarif_yom,
-        tariffNight: a.taarif_layla
+        tariffNight: a.taarif_layla,
+        residentDiscountPct: parseResidentDiscountPct(a.hearot_taarif)
       };
     });
   }

@@ -1,9 +1,7 @@
-import {
-  REFRESH_INTERVAL_MS, STALE_THRESHOLD_MS,
-  STATUS_INFO, STATUS_ORDER, PLANB_COUNT
-} from "./config.js";
+import { REFRESH_INTERVAL_MS, STALE_THRESHOLD_MS, PLANB_COUNT } from "./config.js";
 import { RAW_API_URL, fetchLots } from "./api.js";
 import { createMap } from "./map-setup.js";
+import { initBrand, initBottomControls, showBanner, hideBanner } from "./controls.js";
 import {
   normalizeLotName, statusInfo, formatUpdatedAt, israelNowMs, formatAgo,
   isLotStale, escapeHtml, distanceMeters, formatDistance
@@ -25,48 +23,10 @@ var pendingDeepLinkLotId = deepLinkLotId();
 var map = createMap(pendingDeepLinkLotId != null);
 
 var markersLayer = L.layerGroup().addTo(map);
-var userLocationLayer = L.layerGroup().addTo(map);
 
-document.getElementById("raw-api-link").href = RAW_API_URL;
-
-var infoBackdrop = document.getElementById("info-modal-backdrop");
-function openInfoModal() {
-  infoBackdrop.style.display = "flex";
-}
-function closeInfoModal() {
-  infoBackdrop.style.display = "none";
-}
-document.querySelector("#info-modal .info-close").addEventListener("click", closeInfoModal);
-infoBackdrop.addEventListener("click", function (e) {
-  if (e.target === infoBackdrop) closeInfoModal();
-});
-document.addEventListener("keydown", function (e) {
-  if (e.key === "Escape") closeInfoModal();
-});
-
-var BrandControl = L.Control.extend({
-  options: { position: "topleft" },
-  onAdd: function () {
-    var div = L.DomUtil.create("div", "brand");
-    div.appendChild(document.createTextNode("חניוני אחוזת החוף תל אביב"));
-
-    var icon = document.createElement("span");
-    icon.className = "info-icon";
-    icon.textContent = "i";
-    icon.title = "אודות (About)";
-    L.DomEvent.on(icon, "click", function (e) {
-      L.DomEvent.stopPropagation(e);
-      openInfoModal();
-    });
-    div.appendChild(icon);
-
-    L.DomEvent.disableClickPropagation(div);
-    return div;
-  }
-});
 var SVG_NS = "http://www.w3.org/2000/svg";
 
-new BrandControl().addTo(map);
+initBrand(map);
 
 // Shows when THIS page last pulled the API (client-side clock, unrelated
 // to the feed's per-lot Israel-wall-clock timestamps) and doubles as a
@@ -166,129 +126,9 @@ function updateFreshnessPill() {
 // 60s matches the label's coarsest visible step (minutes).
 setInterval(updateFreshnessPill, 60000);
 
-var LegendControl = L.Control.extend({
-  options: { position: "bottomright" },
-  onAdd: function () {
-    var div = L.DomUtil.create("div", "legend");
-
-    var toggle = document.createElement("div");
-    toggle.className = "legend-toggle";
-    var chevron = document.createElement("span");
-    chevron.className = "chevron";
-    chevron.textContent = "▾";
-    toggle.appendChild(chevron);
-    toggle.appendChild(document.createTextNode("מקרא (Legend)"));
-    div.appendChild(toggle);
-
-    var rows = document.createElement("div");
-    rows.className = "legend-rows";
-    STATUS_ORDER.forEach(function (key) {
-      var info = STATUS_INFO[key];
-      var row = document.createElement("div");
-      row.className = "row";
-
-      var dot = document.createElement("span");
-      dot.className = "dot";
-      dot.style.background = info.hex;
-      row.appendChild(dot);
-      row.appendChild(document.createTextNode(info.label));
-
-      rows.appendChild(row);
-    });
-
-    var discountRow = document.createElement("div");
-    discountRow.className = "row";
-    var badgeSample = document.createElement("span");
-    badgeSample.className = "legend-badge-sample";
-    badgeSample.textContent = "-75%";
-    discountRow.appendChild(badgeSample);
-    discountRow.appendChild(document.createTextNode("הנחת תושב (Resident discount)"));
-    rows.appendChild(discountRow);
+initBottomControls(map);
 
 
-    div.appendChild(rows);
-
-    L.DomEvent.on(toggle, "click", function (e) {
-      L.DomEvent.stopPropagation(e);
-      div.classList.toggle("collapsed");
-    });
-    L.DomEvent.disableClickPropagation(div);
-
-    return div;
-  }
-});
-new LegendControl().addTo(map);
-
-function createLocateIcon() {
-  var svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("width", "20");
-  svg.setAttribute("height", "20");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("fill", "none");
-
-  [[12, 1, 12, 4], [12, 20, 12, 23], [1, 12, 4, 12], [20, 12, 23, 12]].forEach(function (pts) {
-    var line = document.createElementNS(SVG_NS, "line");
-    line.setAttribute("x1", pts[0]);
-    line.setAttribute("y1", pts[1]);
-    line.setAttribute("x2", pts[2]);
-    line.setAttribute("y2", pts[3]);
-    line.setAttribute("stroke", "currentColor");
-    line.setAttribute("stroke-width", "2");
-    line.setAttribute("stroke-linecap", "round");
-    svg.appendChild(line);
-  });
-
-  var ring = document.createElementNS(SVG_NS, "circle");
-  ring.setAttribute("cx", "12");
-  ring.setAttribute("cy", "12");
-  ring.setAttribute("r", "6");
-  ring.setAttribute("stroke", "currentColor");
-  ring.setAttribute("stroke-width", "2");
-  svg.appendChild(ring);
-
-  var dot = document.createElementNS(SVG_NS, "circle");
-  dot.setAttribute("cx", "12");
-  dot.setAttribute("cy", "12");
-  dot.setAttribute("r", "2.5");
-  dot.setAttribute("fill", "currentColor");
-  svg.appendChild(dot);
-
-  return svg;
-}
-
-var LocateControl = L.Control.extend({
-  options: { position: "bottomleft" },
-  onAdd: function () {
-    var btn = L.DomUtil.create("button", "locate-btn");
-    btn.type = "button";
-    btn.title = "מרכז מפה במיקומי (Center map on my location)";
-    btn.appendChild(createLocateIcon());
-    L.DomEvent.on(btn, "click", function (e) {
-      L.DomEvent.stopPropagation(e);
-      btn.disabled = true;
-      map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
-    });
-    L.DomEvent.disableClickPropagation(btn);
-    this._btn = btn;
-    return btn;
-  }
-});
-var locateControl = new LocateControl().addTo(map);
-
-map.on("locationfound", function (e) {
-  locateControl._btn.disabled = false;
-  hideBanner("geo");
-  userLocationLayer.clearLayers();
-  L.marker(e.latlng, {
-    icon: L.divIcon({ className: "", html: '<div class="user-location-dot"></div>', iconSize: [14, 14] }),
-    interactive: false
-  }).addTo(userLocationLayer);
-});
-
-map.on("locationerror", function (e) {
-  locateControl._btn.disabled = false;
-  showBanner("לא ניתן לאתר את המיקום שלך (Couldn't get your location) — " + e.message, "geo");
-});
 
 // Keeps popups clear of the fixed corner controls when Leaflet auto-pans
 // them into view -- without this, a popup near the top can end up under
@@ -297,19 +137,6 @@ var POPUP_AUTOPAN_PADDING = {
   autoPanPaddingTopLeft: L.point(16, 90),
   autoPanPaddingBottomRight: L.point(190, 160)
 };
-
-// Tagged with a source ("fetch"/"geo") so one channel's success can't
-// clobber an unrelated error from the other channel still on screen.
-var banner = document.getElementById("status-banner");
-function showBanner(msg, source) {
-  banner.textContent = msg;
-  banner.dataset.source = source;
-  banner.style.display = "block";
-}
-function hideBanner(source) {
-  if (banner.dataset.source && banner.dataset.source !== source) return;
-  banner.style.display = "none";
-}
 
 // Rows deliberately open the alternative's own popup (via the delegated
 // click handler below) rather than deep-linking straight into Waze: the

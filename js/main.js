@@ -1,8 +1,9 @@
 import {
-  API_URL, REFRESH_INTERVAL_MS, STALE_THRESHOLD_MS,
+  REFRESH_INTERVAL_MS, STALE_THRESHOLD_MS,
   STATUS_INFO, STATUS_ORDER,
   VIEW_STORAGE_KEY, DEFAULT_VIEW, LABEL_MIN_ZOOM, PLANB_COUNT
 } from "./config.js";
+import { RAW_API_URL, fetchLots } from "./api.js";
 import {
   normalizeLotName, statusInfo, formatUpdatedAt, israelNowMs, formatAgo,
   isLotStale, escapeHtml, distanceMeters, formatDistance
@@ -101,9 +102,7 @@ if (typeof maplibregl !== "undefined" && typeof L.maplibreGL === "function") {
 var markersLayer = L.layerGroup().addTo(map);
 var userLocationLayer = L.layerGroup().addTo(map);
 
-// Keep the transparency link honest: derive it from the query the app
-// actually makes, so an outFields change can't silently desync them.
-document.getElementById("raw-api-link").href = API_URL.replace("f=json", "f=pjson");
+document.getElementById("raw-api-link").href = RAW_API_URL;
 
 var infoBackdrop = document.getElementById("info-modal-backdrop");
 function openInfoModal() {
@@ -185,7 +184,7 @@ var FreshnessControl = L.Control.extend({
     // for the info modal. Hidden while everything is healthy (CSS).
     var rawLink = document.createElement("a");
     rawLink.className = "raw-link";
-    rawLink.href = API_URL.replace("f=json", "f=pjson");
+    rawLink.href = RAW_API_URL;
     rawLink.target = "_blank";
     rawLink.rel = "noopener noreferrer";
     rawLink.textContent = "לנתוני המקור ↗";
@@ -647,36 +646,6 @@ function renderLots(lots) {
   }
 }
 
-// hearot_taarif is a free-text tariff-notes field; residents' discounts are
-// mentioned in it with inconsistent phrasing (e.g. "הנחת תושב בסך 75%
-// מתעריף החניון", "75% הנחה לתושבי תל-אביב יפו"). There's no dedicated
-// field, so pull the percentage out of any note that mentions a discount.
-function parseResidentDiscountPct(note) {
-  if (!note || note.indexOf("הנח") === -1) return null;
-  var m = /(\d+)\s*%/.exec(note);
-  return m ? parseInt(m[1], 10) : null;
-}
-
-function parseLots(json) {
-  if (!json || !Array.isArray(json.features)) return [];
-  return json.features.map(function (f) {
-    var a = f.attributes || {};
-    return {
-      id: a.oid_hof,
-      name: a.shem_chenyon,
-      address: a.ktovet,
-      lat: typeof a.lat === "number" ? a.lat : parseFloat(a.lat),
-      lon: typeof a.lon === "number" ? a.lon : parseFloat(a.lon),
-      status: a.status_chenyon,
-      updatedAt: a.tr_status_chenyon,
-      capacity: a.mispar_mekomot_bchenyon,
-      tariffDay: a.taarif_yom,
-      tariffNight: a.taarif_layla,
-      residentDiscountPct: parseResidentDiscountPct(a.hearot_taarif)
-    };
-  });
-}
-
 // isManual: triggered by the pill's refresh button. A tap needs visible
 // confirmation even when no pin changed (otherwise "did it work?"), so
 // manual refreshes flash a success state; the 2-minute auto-poll stays
@@ -703,19 +672,8 @@ function loadData(isManual) {
   fetchInFlight = true;
   if (freshnessPill) freshnessPill.classList.add("loading");
   updateFreshnessPill();
-  // Abort stuck requests: without this, one black-holed socket (flaky
-  // mobile handoff, captive portal) would leave fetchInFlight true forever
-  // and silently kill every future auto-poll and manual refresh.
-  var abort = new AbortController();
-  var abortTimer = setTimeout(function () { abort.abort(); }, 25000);
-  fetch(API_URL, { cache: "no-store", signal: abort.signal })
-    .then(function (res) {
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.json();
-    })
-    .then(function (json) {
-      if (json.error) throw new Error(json.error.message || "API error");
-      var lots = parseLots(json);
+  fetchLots()
+    .then(function (lots) {
       renderLots(lots);
       var prevSourceUpdatedAt = sourceUpdatedAt;
       sourceUpdatedAt = lots.reduce(function (max, l) {
@@ -735,7 +693,6 @@ function loadData(isManual) {
       showBanner("לא ניתן לרענן את נתוני החניה, ננסה שוב (Couldn't refresh parking data, will retry) — " + err.message, "fetch");
     })
     .finally(function () {
-      clearTimeout(abortTimer);
       fetchInFlight = false;
       if (freshnessPill) freshnessPill.classList.remove("loading");
       updateFreshnessPill();

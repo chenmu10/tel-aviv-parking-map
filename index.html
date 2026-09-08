@@ -907,8 +907,14 @@
     if (!btn) return;
     var url = location.origin + location.pathname + "#lot=" + btn.getAttribute("data-lot-id");
     var name = btn.getAttribute("data-lot-name");
+    // The text carries a Google Maps destination link so nav-oriented share
+    // targets (e.g. the Tesla app, which sends destinations to the car and
+    // can't parse our deep link) get usable coordinates; human recipients
+    // still get the map deep link in the url field.
+    var navUrl = "https://www.google.com/maps/dir/?api=1&destination=" +
+      encodeURIComponent(btn.getAttribute("data-latlon"));
     if (navigator.share) {
-      navigator.share({ title: "חניון " + name, url: url }).catch(function () {});
+      navigator.share({ title: "חניון " + name, text: "חניון " + name + " — ניווט: " + navUrl, url: url }).catch(function () {});
     } else if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(function () {
         btn.classList.add("copied");
@@ -990,7 +996,7 @@
           '<a href="https://www.google.com/maps/dir/?api=1&destination=' + destinationParam + '" target="_blank" rel="noopener noreferrer" aria-label="Google Maps" title="Google Maps">' +
             '<img src="google-maps-icon.png" alt="" width="40" height="40" />' +
           "</a>" +
-          '<button type="button" class="popup-share" data-lot-id="' + escapeHtml(lot.id) + '" data-lot-name="' + escapeHtml(lot.name || "חניון") + '" title="שתף קישור לחניון (Share)" aria-label="שתף (Share)">' + SHARE_SVG + "</button>" +
+          '<button type="button" class="popup-share" data-lot-id="' + escapeHtml(lot.id) + '" data-lot-name="' + escapeHtml(lot.name || "חניון") + '" data-latlon="' + escapeHtml(lot.lat + "," + lot.lon) + '" title="שתף קישור לחניון (Share)" aria-label="שתף (Share)">' + SHARE_SVG + "</button>" +
         "</div>" +
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +

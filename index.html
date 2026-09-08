@@ -372,7 +372,34 @@
     return STATUS_INFO[key] || DEFAULT_STATUS;
   }
 
-  var map = L.map("map", { center: [32.08, 34.77], zoom: 13, zoomControl: false });
+  // Restore the last map view across reloads -- mobile browsers evict the
+  // tab when users hop to Waze and back, and the reload used to reset the
+  // view to the city-wide default. Saved views far outside the Tel Aviv
+  // area (or otherwise malformed) are ignored in favor of the default.
+  var VIEW_STORAGE_KEY = "tlv-parking-map-view";
+  var DEFAULT_VIEW = { lat: 32.08, lon: 34.77, zoom: 13 };
+
+  function loadSavedView() {
+    try {
+      var v = JSON.parse(localStorage.getItem(VIEW_STORAGE_KEY));
+      if (!v || !Number.isFinite(v.lat) || !Number.isFinite(v.lon) || !Number.isFinite(v.zoom)) return null;
+      if (v.lat < 31.9 || v.lat > 32.25 || v.lon < 34.6 || v.lon > 34.95) return null;
+      if (v.zoom < 10 || v.zoom > 19) return null;
+      return v;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  var initialView = loadSavedView() || DEFAULT_VIEW;
+  var map = L.map("map", { center: [initialView.lat, initialView.lon], zoom: initialView.zoom, zoomControl: false });
+
+  map.on("moveend", function () {
+    try {
+      var c = map.getCenter();
+      localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({ lat: c.lat, lon: c.lng, zoom: map.getZoom() }));
+    } catch (e) { /* storage may be unavailable (private mode); view just won't persist */ }
+  });
 
   // Lot-name labels only render once zoomed in enough that pins have spread
   // out -- with ~90 lots, showing them at the full-city zoom would be an

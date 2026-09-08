@@ -111,6 +111,10 @@
   }
   #info-modal a + a { margin-top: 2px; }
   #info-modal a:hover { text-decoration: underline; }
+  #info-modal .info-note {
+    font-size: 12px; color: #5b6472; direction: rtl; text-align: right;
+    margin: 10px 0 2px; line-height: 1.5;
+  }
   .locate-btn {
     background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 50%;
     box-shadow: 0 8px 24px rgba(16,24,40,.12); width: 44px; height: 44px;
@@ -188,6 +192,7 @@
     <button type="button" class="info-close" aria-label="סגור (Close)">&times;</button>
     <a href="https://www.linkedin.com/in/chen-m/" target="_blank" rel="noopener noreferrer">Contact Me ↗</a>
     <a href="https://github.com/chenmu10/tel-aviv-parking-map/issues/new" target="_blank" rel="noopener noreferrer">Report a bug / request a feature ↗</a>
+    <p class="info-note">המפה מושכת את נתוני אחוזות החוף (עיריית ת״א) כל 2 דקות. "עודכן באחוזות החוף" בכל חניון הוא הזמן שבו הסטטוס עודכן במקור — ולכן יכול לפגר אחרי רענון של המפה.</p>
   </div>
 </div>
 
@@ -465,7 +470,7 @@
     var ago = seconds < 60
       ? "לפני " + seconds + " שנ׳"
       : "לפני " + Math.floor(seconds / 60) + " דק׳";
-    freshnessText.textContent = "עודכן " + ago;
+    freshnessText.textContent = "נמשך מאחוזות החוף " + ago;
   }
   setInterval(updateFreshnessPill, 1000);
 
@@ -741,7 +746,7 @@
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
         (lot.capacity ? '<div class="popup-row">קיבולת (Capacity): ' + escapeHtml(lot.capacity) + "</div>" : "") +
-        '<div class="popup-updated' + (isStale ? ' stale' : '') + '">עודכן: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) +
+        '<div class="popup-updated' + (isStale ? ' stale' : '') + '">עודכן באחוזות החוף: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) +
           (lot.updatedAt ? ' (' + escapeHtml(formatAgo(lot.updatedAt, nowMs)) + ')' : '') + "</div>" +
         (officialLink ? '<div class="popup-row"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(officialLink) + '</a></div>' : "");
 

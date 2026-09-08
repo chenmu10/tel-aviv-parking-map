@@ -178,6 +178,15 @@
     width: 44px; height: 44px;
   }
   .popup-nav a img { width: 40px; height: 40px; border-radius: 9px; display: block; }
+  .popup-nav .popup-share {
+    width: 40px; height: 40px; border-radius: 9px; border: none; cursor: pointer;
+    background: #eef1f5; color: #2563eb; display: inline-flex;
+    align-items: center; justify-content: center; padding: 0; font-family: var(--font);
+  }
+  .popup-nav .popup-share:hover { background: #e2e6eb; }
+  .popup-nav .popup-share.copied {
+    width: auto; padding: 0 10px; font-size: 11px; font-weight: 600; color: #166534; background: #f0fdf4;
+  }
   .popup-planb { border-top: 1px solid #eef1f5; margin-top: 8px; padding-top: 6px; }
   .popup-planb-title { font-size: 11.5px; font-weight: 600; color: #5b6472; margin-bottom: 2px; }
   .popup-planb-row { display: flex; align-items: center; gap: 7px; padding: 4px 4px; margin: 0 -4px; font-size: 12.5px; cursor: pointer; border-radius: 7px; }
@@ -391,7 +400,16 @@
     }
   }
 
-  var initialView = loadSavedView() || DEFAULT_VIEW;
+  // #lot=<oid> deep link: a shared link should land on the shared lot, so it
+  // overrides the saved-view restore. Consumed once, on the first render
+  // that has the lot's marker.
+  function deepLinkLotId() {
+    var m = /[#&]lot=(\d+)/.exec(location.hash);
+    return m ? m[1] : null;
+  }
+  var pendingDeepLinkLotId = deepLinkLotId();
+
+  var initialView = (pendingDeepLinkLotId ? null : loadSavedView()) || DEFAULT_VIEW;
   var map = L.map("map", { center: [initialView.lat, initialView.lon], zoom: initialView.zoom, zoomControl: false });
 
   map.on("moveend", function () {
@@ -852,6 +870,60 @@
     if (marker) marker.openPopup();
   });
 
+  var SHARE_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.7" x2="15.4" y2="6.3"/><line x1="8.6" y1="13.3" x2="15.4" y2="17.7"/></svg>';
+
+  function createShareIcon() {
+    var svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("width", "20");
+    svg.setAttribute("height", "20");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    [[18, 5], [6, 12], [18, 19]].forEach(function (c) {
+      var circle = document.createElementNS(SVG_NS, "circle");
+      circle.setAttribute("cx", c[0]);
+      circle.setAttribute("cy", c[1]);
+      circle.setAttribute("r", "3");
+      svg.appendChild(circle);
+    });
+    [[8.6, 10.7, 15.4, 6.3], [8.6, 13.3, 15.4, 17.7]].forEach(function (p) {
+      var line = document.createElementNS(SVG_NS, "line");
+      line.setAttribute("x1", p[0]);
+      line.setAttribute("y1", p[1]);
+      line.setAttribute("x2", p[2]);
+      line.setAttribute("y2", p[3]);
+      svg.appendChild(line);
+    });
+    return svg;
+  }
+
+  // navigator.share opens the native sheet (the mobile case this is for);
+  // desktop browsers without it copy the link and flash confirmation.
+  map.getContainer().addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest(".popup-share");
+    if (!btn) return;
+    var url = location.origin + location.pathname + "#lot=" + btn.getAttribute("data-lot-id");
+    var name = btn.getAttribute("data-lot-name");
+    if (navigator.share) {
+      navigator.share({ title: "חניון " + name, url: url }).catch(function () {});
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        btn.classList.add("copied");
+        btn.textContent = "הקישור הועתק ✓";
+        setTimeout(function () {
+          btn.classList.remove("copied");
+          btn.textContent = "";
+          btn.appendChild(createShareIcon());
+        }, 1600);
+      });
+    } else {
+      window.prompt("העתק את הקישור (Copy the link):", url);
+    }
+  });
+
   function renderLots(lots) {
     markersLayer.clearLayers();
     markersByLotId = {};
@@ -918,6 +990,7 @@
           '<a href="https://www.google.com/maps/dir/?api=1&destination=' + destinationParam + '" target="_blank" rel="noopener noreferrer" aria-label="Google Maps" title="Google Maps">' +
             '<img src="google-maps-icon.png" alt="" width="40" height="40" />' +
           "</a>" +
+          '<button type="button" class="popup-share" data-lot-id="' + escapeHtml(lot.id) + '" data-lot-name="' + escapeHtml(lot.name || "חניון") + '" title="שתף קישור לחניון (Share)" aria-label="שתף (Share)">' + SHARE_SVG + "</button>" +
         "</div>" +
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
@@ -936,6 +1009,20 @@
       markersLayer.addLayer(marker);
       markersByLotId[lot.id] = marker;
     });
+
+    // Consume the #lot= deep link on the first render, hit or miss -- a
+    // miss (unknown/closed lot) must not lie in wait and yank the map to
+    // that lot if it reappears in a later auto-refresh.
+    if (pendingDeepLinkLotId != null) {
+      var shared = markersByLotId[pendingDeepLinkLotId];
+      pendingDeepLinkLotId = null;
+      if (shared) {
+        // animate:false -- openPopup's autopan would cancel an animated
+        // setView mid-flight and strand the map at an in-between zoom.
+        map.setView(shared.getLatLng(), Math.max(map.getZoom(), 16), { animate: false });
+        shared.openPopup();
+      }
+    }
   }
 
   // hearot_taarif is a free-text tariff-notes field; residents' discounts are

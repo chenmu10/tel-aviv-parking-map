@@ -238,10 +238,10 @@ function popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacit
       : "") +
     '<div class="popup-nav">' +
       `<a class="popup-nav-btn" href="https://waze.com/ul?ll=${destinationParam}&navigate=yes" target="_blank" rel="noopener noreferrer" aria-label="Waze" title="Waze">` +
-        '<img src="waze-icon.png" alt="" width="26" height="26" />' +
+        '<img src="waze-icon.png" alt="" width="40" height="40" />' +
       "</a>" +
       `<a class="popup-nav-btn" href="https://www.google.com/maps/dir/?api=1&destination=${destinationParam}" target="_blank" rel="noopener noreferrer" aria-label="Google Maps" title="Google Maps">` +
-        '<img src="google-maps-icon.png" alt="" width="26" height="26" />' +
+        '<img src="google-maps-icon.png" alt="" width="40" height="40" />' +
       "</a>" +
       `<button type="button" class="popup-share" data-lot-id="${escapeHtml(lot.id)}" data-lot-name="${escapeHtml(lot.name || "חניון")}" data-latlon="${escapeHtml(lot.lat + "," + lot.lon)}" title="שתף קישור לחניון (Share)" aria-label="שתף (Share)">${SHARE_SVG}</button>` +
     "</div>" +

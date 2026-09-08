@@ -71,6 +71,9 @@
   }
   .freshness-pill:hover { background: rgba(248,250,252,.95); }
   .freshness-pill.error, .freshness-pill.aged { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+  .freshness-pill .raw-link { display: none; color: #2563eb; font-weight: 600; text-decoration: none; white-space: nowrap; }
+  .freshness-pill.error .raw-link, .freshness-pill.aged .raw-link { display: inline; }
+  .freshness-pill .raw-link:hover { text-decoration: underline; }
   .freshness-pill.success { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
   .freshness-pill.success .refresh-btn { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
   .freshness-pill .refresh-btn {
@@ -210,6 +213,8 @@
     <button type="button" class="info-close" aria-label="סגור (Close)">&times;</button>
     <a href="https://www.linkedin.com/in/chen-m/" target="_blank" rel="noopener noreferrer">Contact Me ↗</a>
     <a href="https://github.com/chenmu10/tel-aviv-parking-map/issues/new" target="_blank" rel="noopener noreferrer">Report a bug / request a feature ↗</a>
+    <a href="https://opendata.tel-aviv.gov.il/he/dataItem/9/Api" target="_blank" rel="noopener noreferrer">מקור הנתונים — פורטל המידע הפתוח של עיריית ת״א ↗</a>
+    <a href="https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/970/query?where=1%3D1&amp;outFields=oid_hof,shem_chenyon,ktovet,lon,lat,status_chenyon,tr_status_chenyon,mispar_mekomot_bchenyon,taarif_yom,taarif_layla,hearot_taarif&amp;returnGeometry=false&amp;f=pjson" target="_blank" rel="noopener noreferrer">הנתונים הגולמיים שהמפה מציגה (Raw API) ↗</a>
     <p class="info-note">המפה מביאה נתונים מאתר אחוזות החוף (עיריית ת״א) כל 2 דקות. "עודכן באחוזות החוף" בכל חניון הוא הזמן שבו הסטטוס עודכן במקור — ולכן יכול לפגר אחרי רענון של המפה.</p>
   </div>
 </div>
@@ -475,6 +480,21 @@
 
       var text = document.createElement("span");
       div.appendChild(text);
+
+      // Direct escape hatch when something looks wrong (outage / stale /
+      // fetch error): lets users verify against the source without hunting
+      // for the info modal. Hidden while everything is healthy (CSS).
+      var rawLink = document.createElement("a");
+      rawLink.className = "raw-link";
+      rawLink.href = API_URL.replace("f=json", "f=pjson");
+      rawLink.target = "_blank";
+      rawLink.rel = "noopener noreferrer";
+      rawLink.textContent = "לנתוני המקור ↗";
+      rawLink.title = "צפייה בנתונים הגולמיים מהעירייה (View raw source data)";
+      L.DomEvent.on(rawLink, "click", function (e) {
+        L.DomEvent.stopPropagation(e);
+      });
+      div.appendChild(rawLink);
 
       L.DomEvent.on(div, "click", function (e) {
         L.DomEvent.stopPropagation(e);
@@ -743,7 +763,7 @@
         '</div>';
     }).join("");
     return '<div class="popup-planb">' +
-      '<div class="popup-planb-title">תוכנית ב׳ — חניונים קרובים (Plan B)</div>' +
+      '<div class="popup-planb-title">חניונים קרובים (Nearby lots)</div>' +
       rows + '</div>';
   }
 

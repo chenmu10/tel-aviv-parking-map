@@ -815,8 +815,10 @@
         '<div class="popup-title">' + escapeHtml(lot.name || "חניון (Parking lot)") + "</div>" +
         '<div class="popup-addr">' + escapeHtml(lot.address || "") + "</div>" +
         '<div class="popup-status" style="background:' + info.hex + '1a;color:' + info.hex + '">' + info.label + "</div>" +
-        '<div class="popup-updated' + (isStale ? ' stale' : '') + '">עודכן באחוזות החוף: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) +
-          (lot.updatedAt ? ' (' + escapeHtml(formatAgo(lot.updatedAt, nowMs)) + ')' : '') + "</div>" +
+        '<div class="popup-updated' + (isStale ? ' stale' : '') + '">עודכן באחוזות החוף ' +
+          (lot.updatedAt
+            ? escapeHtml(formatAgo(lot.updatedAt, nowMs)) + ' (' + escapeHtml(formatUpdatedAt(lot.updatedAt)) + ')'
+            : "בזמן לא ידוע (unknown)") + "</div>" +
         (isStale
           ? '<div class="popup-stale-warning">⚠️ הסטטוס לא עודכן ' +
             escapeHtml(lot.updatedAt ? formatAgo(lot.updatedAt, nowMs).replace(/^לפני /, "מזה ") : "זמן רב") +

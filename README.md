@@ -5,7 +5,7 @@ Ahuzot HaHof coastal parking lots on a map, color-coded by status
 (available / few spaces / full / closed). UI is Hebrew-first, with English
 in parentheses for the mixed Hebrew/English audience it's built for.
 
-Live: https://chenmu10.github.io/tel-aviv-parking-map/ _(once GitHub Pages is enabled on the repo)_
+Live: https://chenmu10.github.io/tel-aviv-parking-map/
 
 ## Screenshots
 
@@ -16,6 +16,8 @@ Live: https://chenmu10.github.io/tel-aviv-parking-map/ _(once GitHub Pages is en
 ## Features
 
 - Live availability map with color-coded status pins, filtered to exclude closed lots
+- Resident-discount badge (-50%/-75%) on each pin where a discount applies
+- Lot-name labels appear once zoomed in enough to read them
 - Collapsible legend explaining the status colors
 - Each lot's popup shows its address, status, when the source last updated it
   (with a stale-data warning past 30 minutes), tariffs, and capacity

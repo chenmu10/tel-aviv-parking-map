@@ -111,6 +111,10 @@
   }
 
   .pin { position: relative; width: 30px; height: 40px; filter: drop-shadow(0 3px 4px rgba(0,0,0,.25)); }
+  .pin.stale { filter: grayscale(.65) opacity(.8) drop-shadow(0 3px 4px rgba(0,0,0,.25)); }
+  .stale-badge {
+    position: absolute; top: -7px; left: -7px; font-size: 11px; line-height: 1;
+  }
   .pin .letter {
     position: absolute; top: 5px; left: 0; width: 30px; text-align: center;
     font-family: var(--font); font-weight: 800; font-size: 12px;
@@ -148,6 +152,12 @@
   }
   .popup-nav a img { width: 40px; height: 40px; border-radius: 9px; display: block; }
   .popup-updated { font-size: 11px; color: #9aa2ad; margin-top: 6px; }
+  .popup-updated.stale { color: #9a3412; }
+  .popup-stale-warning {
+    background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412;
+    border-radius: 8px; padding: 5px 8px; font-size: 11.5px; font-weight: 500;
+    margin: 2px 0 6px;
+  }
 </style>
 <!-- Cloudflare Web Analytics -->
 <script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "a59371dfe78942f29f5c7c5b5cb50cb6"}'></script>
@@ -177,6 +187,11 @@
     "&f=json";
 
   var REFRESH_INTERVAL_MS = 2 * 60 * 1000;
+
+  // The GIS feed's per-lot status timestamp (tr_status_chenyon) can lag far
+  // behind reality; past this age a lot's status is shown but visibly
+  // demoted (faded pin + warning) instead of looking confidently live.
+  var STALE_THRESHOLD_MS = 30 * 60 * 1000;
 
   var STATUS_INFO = {
     "פנוי":  { hex: "#16a34a", label: "פנוי (Available)" },
@@ -409,6 +424,11 @@
       discountRow.appendChild(document.createTextNode("הנחת תושב (Resident discount)"));
       rows.appendChild(discountRow);
 
+      var staleRow = document.createElement("div");
+      staleRow.className = "row";
+      staleRow.appendChild(document.createTextNode("⚠️ מידע לא עדכני (Data may be outdated)"));
+      rows.appendChild(staleRow);
+
       div.appendChild(rows);
 
       L.DomEvent.on(toggle, "click", function (e) {
@@ -580,6 +600,7 @@
       if (!Number.isFinite(lot.lat) || !Number.isFinite(lot.lon)) return;
       if ((lot.status || "").trim() === "סגור") return;
       var info = statusInfo(lot.status);
+      var isStale = !lot.updatedAt || (nowMs - lot.updatedAt) > STALE_THRESHOLD_MS;
 
       var normalizedName = normalizeLotName(lot.name);
       var ahuzotId = Object.prototype.hasOwnProperty.call(AHUZOT_LINKS, normalizedName)
@@ -600,11 +621,12 @@
       }
 
       var html =
-        '<div class="pin"><svg width="30" height="40" viewBox="0 0 30 40">' +
+        '<div class="pin' + (isStale ? ' stale' : '') + '"><svg width="30" height="40" viewBox="0 0 30 40">' +
         '<path d="M15 0C6.7 0 0 6.7 0 15c0 10 15 25 15 25s15-15 15-25C30 6.7 23.3 0 15 0z" fill="' + info.hex + '"/>' +
         '<circle cx="15" cy="15" r="7" fill="#fff"/></svg>' +
         '<span class="letter" style="color:' + info.hex + '">P</span>' +
         discountBadge +
+        (isStale ? '<span class="stale-badge">⚠️</span>' : '') +
         '</div>';
       var icon = L.divIcon({ html: html, className: "", iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -36] });
       var marker = L.marker([lot.lat, lot.lon], { icon: icon });
@@ -619,6 +641,11 @@
         '<div class="popup-title">' + escapeHtml(lot.name || "חניון (Parking lot)") + "</div>" +
         '<div class="popup-addr">' + escapeHtml(lot.address || "") + "</div>" +
         '<div class="popup-status" style="background:' + info.hex + '1a;color:' + info.hex + '">' + info.label + "</div>" +
+        (isStale
+          ? '<div class="popup-stale-warning">⚠️ הסטטוס לא עודכן ' +
+            escapeHtml(lot.updatedAt ? formatAgo(lot.updatedAt, nowMs).replace(/^לפני /, "מזה ") : "זמן רב") +
+            ' — ייתכן שאינו מדויק (Status may be outdated)</div>'
+          : "") +
         '<div class="popup-nav">' +
           '<a href="https://waze.com/ul?ll=' + destinationParam + '&navigate=yes" target="_blank" rel="noopener noreferrer" aria-label="Waze" title="Waze">' +
             '<img src="waze-icon.png" alt="" width="40" height="40" />' +
@@ -630,7 +657,7 @@
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
         (lot.capacity ? '<div class="popup-row">קיבולת (Capacity): ' + escapeHtml(lot.capacity) + "</div>" : "") +
-        '<div class="popup-updated">עודכן: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) +
+        '<div class="popup-updated' + (isStale ? ' stale' : '') + '">עודכן: ' + escapeHtml(formatUpdatedAt(lot.updatedAt)) +
           (lot.updatedAt ? ' (' + escapeHtml(formatAgo(lot.updatedAt, nowMs)) + ')' : '') + "</div>" +
         (officialLink ? '<div class="popup-row"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(officialLink) + '</a></div>' : "");
 

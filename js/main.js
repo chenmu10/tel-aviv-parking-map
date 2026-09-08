@@ -1,22 +1,16 @@
 import {
   API_URL, REFRESH_INTERVAL_MS, STALE_THRESHOLD_MS,
-  STATUS_INFO, DEFAULT_STATUS, STATUS_ORDER,
+  STATUS_INFO, STATUS_ORDER,
   VIEW_STORAGE_KEY, DEFAULT_VIEW, LABEL_MIN_ZOOM, PLANB_COUNT
 } from "./config.js";
+import {
+  normalizeLotName, statusInfo, formatUpdatedAt, israelNowMs, formatAgo,
+  isLotStale, escapeHtml, distanceMeters, formatDistance
+} from "./format.js";
 import {
   AHUZOT_LINK_BASE, AHUZOT_LINKS,
   RESIDENT_DISCOUNT_BY_AHUZOT_ID, CAPACITY_BY_AHUZOT_ID
 } from "./lot-data.js";
-
-function normalizeLotName(name) {
-  return String(name == null ? "" : name).replace(/[\s\-()]/g, "");
-}
-
-
-function statusInfo(rawStatus) {
-  var key = (rawStatus || "").trim();
-  return STATUS_INFO[key] || DEFAULT_STATUS;
-}
 
 // Restore the last map view across reloads -- mobile browsers evict the
 // tab when users hop to Waze and back, and the reload used to reset the
@@ -393,68 +387,6 @@ function hideBanner(source) {
   banner.style.display = "none";
 }
 
-function formatUpdatedAt(epochMs) {
-  if (!epochMs) return "לא ידוע";
-  // epochMs's Y/M/D h:m:s components are already Israel wall-clock time,
-  // just mislabeled as UTC ms by the source API.
-  // Formatting with timeZone: 'UTC' reads those components back out as-is;
-  // do NOT switch this to plain toLocaleString() -- that would re-apply the
-  // browser's local offset on top and reintroduce the ~3 hour display bug.
-  return new Date(epochMs).toLocaleString('en-GB', { timeZone: 'UTC' });
-}
-
-// tr_status_chenyon encodes Israel local wall-clock time as if it were
-// UTC epoch ms (verified against the live API and against ahuzot.co.il's
-// own lot pages). To diff against it, "now" must be computed the same
-// way -- not with Date.now(), which is true UTC and would be off by
-// Israel's UTC offset (which itself changes across DST).
-function israelNowMs() {
-  if (!israelNowMs._fmt) {
-    // Intl.DateTimeFormat construction is expensive; build once and reuse.
-    israelNowMs._fmt = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Jerusalem',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-      hour12: false
-    });
-  }
-  var parts = israelNowMs._fmt.formatToParts(new Date());
-
-  var p = {};
-  parts.forEach(function (part) { p[part.type] = part.value; });
-
-  // Some environments format midnight as hour "24" under hour12:false.
-  var hour = p.hour === '24' ? 0 : parseInt(p.hour, 10);
-
-  return Date.UTC(
-    parseInt(p.year, 10),
-    parseInt(p.month, 10) - 1,
-    parseInt(p.day, 10),
-    hour,
-    parseInt(p.minute, 10),
-    parseInt(p.second, 10)
-  );
-}
-
-function formatAgo(epochMs, nowMs) {
-  if (!epochMs) return "";
-  var minutes = Math.floor(Math.max(0, nowMs - epochMs) / 60000);
-  if (minutes < 1) return "עכשיו";
-  if (minutes < 60) return "לפני " + minutes + " דקות";
-  var hours = Math.floor(minutes / 60);
-  if (hours < 24) return "לפני " + hours + " שעות";
-  var days = Math.floor(hours / 24);
-  return "לפני " + days + " ימים";
-}
-
-function escapeHtml(str) {
-  return String(str == null ? "" : str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 // Rows deliberately open the alternative's own popup (via the delegated
 // click handler below) rather than deep-linking straight into Waze: the
 // user should see that lot's update time and stale warning before
@@ -478,29 +410,10 @@ function planBHtml(lot, visibleLots, nowMs) {
 }
 
 
-function distanceMeters(lat1, lon1, lat2, lon2) {
-  var R = 6371000;
-  var toRad = Math.PI / 180;
-  var dLat = (lat2 - lat1) * toRad;
-  var dLon = (lon2 - lon1) * toRad;
-  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function formatDistance(m) {
-  return m < 1000 ? Math.round(m / 10) * 10 + " מ׳" : (m / 1000).toFixed(1) + " ק״מ";
-}
-
 // Plan B: the nearest not-full lots, so a driver who arrives at a lot the
 // feed got wrong already has somewhere to go next. Prefers lots the feed
 // says have room (פנוי/מעט); pads with status-unknown lots only when
 // fewer than PLANB_COUNT of those exist nearby.
-function isLotStale(lot, nowMs) {
-  return !lot.updatedAt || (nowMs - lot.updatedAt) > STALE_THRESHOLD_MS;
-}
-
 function planBAlternatives(lot, visibleLots, nowMs) {
   var withRoom = [];
   var unknown = [];

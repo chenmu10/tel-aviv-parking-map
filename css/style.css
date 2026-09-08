@@ -214,7 +214,6 @@ html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font); }
 .popup-planb-row .planb-name { flex: 1; color: #16181d; }
 .popup-planb-row .planb-arrow { display: inline-block; font-size: 11px; color: #9aa2ad; line-height: 1; flex-shrink: 0; }
 .popup-planb-row .planb-dist { font-size: 11px; color: #9aa2ad; }
-.popup-planb-row .planb-chevron { color: #9aa2ad; font-size: 14px; line-height: 1; }
 .popup-official { margin-top: 4px; }
 .popup-official a { font-size: 12px; font-weight: 600; color: #2563eb; text-decoration: none; }
 .popup-official a:hover { text-decoration: underline; }

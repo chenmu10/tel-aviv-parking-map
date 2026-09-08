@@ -40,13 +40,17 @@ let lastVisibleLots = [];
 // them into view -- without this, a popup near the top can end up under
 // the zoom control, and one near the bottom under the legend.
 // Measured from the real control corners, not fixed numbers: on narrow
-// phones the brand + pill stack wraps and grows well past the 90px the
-// old constant assumed, which parked popups underneath the pill.
+// phones the brand + pill + search stack wraps and grows well past the
+// 90px the old constant assumed, which parked popups underneath the pill.
+// Top clearance takes the taller of the two top corners (the brand stack
+// sits top-right for RTL, zoom top-left).
 function popupAutopanPadding() {
   const topLeft = document.querySelector(".leaflet-top.leaflet-left");
+  const topRight = document.querySelector(".leaflet-top.leaflet-right");
   const bottomRight = document.querySelector(".leaflet-bottom.leaflet-right");
+  const topHeight = Math.max(topLeft ? topLeft.offsetHeight : 0, topRight ? topRight.offsetHeight : 0, 80);
   return {
-    autoPanPaddingTopLeft: L.point(16, (topLeft ? topLeft.offsetHeight : 80) + 12),
+    autoPanPaddingTopLeft: L.point(16, topHeight + 12),
     autoPanPaddingBottomRight: L.point(190, Math.max(160, (bottomRight ? bottomRight.offsetHeight : 150) + 12))
   };
 }
@@ -101,7 +105,6 @@ function planBHtml(lot, visibleLots, nowMs) {
       // says which way the alternative is (map is always north-up).
       `<span class="planb-arrow" style="transform:rotate(${Math.round(alt.bearing)}deg)" aria-hidden="true">↑</span>` +
       `<span class="planb-dist">${formatDistance(alt.dist)}</span>` +
-      '<span class="planb-chevron">‹</span>' +
       "</div>";
   }).join("");
   return '<div class="popup-planb">' +

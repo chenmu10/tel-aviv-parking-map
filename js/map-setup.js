@@ -2,16 +2,19 @@
 // persistence, zoom-gated lot-name labels, and the basemap with its
 // raster fallback.
 
-import { VIEW_STORAGE_KEY, DEFAULT_VIEW, LABEL_MIN_ZOOM } from "./config.js";
+import { VIEW_STORAGE_KEY, DEFAULT_VIEW, LABEL_MIN_ZOOM, VIEW_MAX_AGE_MS } from "./config.js";
 
 // Restore the last map view across reloads -- mobile browsers evict the
 // tab when users hop to Waze and back, and the reload used to reset the
 // view to the city-wide default. Saved views far outside the Tel Aviv
-// area (or otherwise malformed) are ignored in favor of the default.
+// area (or otherwise malformed) are ignored in favor of the default, and
+// so are stale ones (VIEW_MAX_AGE_MS): a fresh visit hours later should
+// start at the city overview, not wherever the user last parked.
 function loadSavedView() {
   try {
     const v = JSON.parse(localStorage.getItem(VIEW_STORAGE_KEY));
     if (!v || !Number.isFinite(v.lat) || !Number.isFinite(v.lon) || !Number.isFinite(v.zoom)) return null;
+    if (!Number.isFinite(v.savedAt) || Date.now() - v.savedAt > VIEW_MAX_AGE_MS) return null;
     if (v.lat < 31.9 || v.lat > 32.25 || v.lon < 34.6 || v.lon > 34.95) return null;
     if (v.zoom < 10 || v.zoom > 19) return null;
     return v;
@@ -73,7 +76,7 @@ export function createMap(skipSavedView) {
   map.on("moveend", () => {
     try {
       const c = map.getCenter();
-      localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({ lat: c.lat, lon: c.lng, zoom: map.getZoom() }));
+      localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({ lat: c.lat, lon: c.lng, zoom: map.getZoom(), savedAt: Date.now() }));
     } catch (e) { /* storage may be unavailable (private mode); view just won't persist */ }
   });
 
@@ -87,7 +90,7 @@ export function createMap(skipSavedView) {
   map.on("zoomend", updateLabelVisibility);
   updateLabelVisibility();
 
-  L.control.zoom({ position: "topright" }).addTo(map);
+  L.control.zoom({ position: "topleft" }).addTo(map);
 
   addBasemap(map);
   return map;

@@ -47,8 +47,10 @@ function initInfoModal() {
   });
 }
 
+// Hebrew-first UI: the reading flow starts top-right, so the brand (and
+// the pill + search below it) anchor there; the zoom control takes topleft.
 const BrandControl = L.Control.extend({
-  options: { position: "topleft" },
+  options: { position: "topright" },
   onAdd: function () {
     const div = L.DomUtil.create("div", "brand");
     div.appendChild(document.createTextNode("חניוני אחוזת החוף תל אביב"));
@@ -200,8 +202,8 @@ function initLocate(map) {
 
 // --- Init --------------------------------------------------------------------
 
-// Adds the brand control only; the freshness pill (also topleft) is added by
-// freshness.js right after, so the pill sits below the brand as before.
+// Adds the brand control only; the freshness pill (also topright) is added
+// by freshness.js right after, so the pill sits below the brand as before.
 export function initBrand(map) {
   initInfoModal();
   new BrandControl().addTo(map);

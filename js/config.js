@@ -28,6 +28,10 @@ export const STATUS_ORDER = ["פנוי", "מעט", "מלא", "פעיל"];
 
 export const VIEW_STORAGE_KEY = "tlv-parking-map-view";
 export const DEFAULT_VIEW = { lat: 32.08, lon: 34.77, zoom: 13 };
+// Saved views older than this are ignored: view persistence exists for the
+// minutes-scale Waze-hop tab eviction (see map-setup.js), not for opening
+// the map days later zoomed into wherever you last parked.
+export const VIEW_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
 // Lot-name labels only render once zoomed in enough that pins have spread
 // out -- with ~90 lots, showing them at the full-city zoom would be an

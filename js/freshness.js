@@ -114,7 +114,7 @@ export function recordFetchError() {
 // manual data load).
 export function initFreshnessPill(map, onRefresh) {
   const FreshnessControl = L.Control.extend({
-    options: { position: "topleft" },
+    options: { position: "topright" },
     onAdd: function () {
       const div = L.DomUtil.create("div", "freshness-pill");
       div.title = "בדוק עכשיו אם יש עדכון (Check now for updates)";

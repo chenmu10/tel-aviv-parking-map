@@ -117,7 +117,7 @@ export function initSearch(map) {
   }
 
   const SearchControl = L.Control.extend({
-    options: { position: "topleft" },
+    options: { position: "topright" },
     onAdd: function () {
       const div = L.DomUtil.create("div", "search-box");
 

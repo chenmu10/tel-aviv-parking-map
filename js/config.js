@@ -28,6 +28,17 @@ export const STATUS_ORDER = ["פנוי", "מעט", "מלא", "פעיל"];
 
 export const VIEW_STORAGE_KEY = "tlv-parking-map-view";
 export const DEFAULT_VIEW = { lat: 32.08, lon: 34.77, zoom: 13 };
+
+// Greater-Tel-Aviv service area: the box a saved view must fall inside AND
+// the box address-search results are clipped to. One constant so the two
+// can't drift apart.
+export const TLV_BOUNDS = { minLat: 31.9, maxLat: 32.25, minLon: 34.6, maxLon: 34.95 };
+
+// An address search only auto-opens a lot within this distance. The search
+// bbox reaches Herzliya/Holon but all lots are in Tel Aviv proper — beyond
+// this, opening the "nearest" lot would autopan the map right off the
+// searched address.
+export const SEARCH_MAX_LOT_DISTANCE_M = 3000;
 // Saved views older than this are ignored: view persistence exists for the
 // minutes-scale Waze-hop tab eviction (see map-setup.js), not for opening
 // the map days later zoomed into wherever you last parked.
@@ -41,3 +52,8 @@ export const LABEL_MIN_ZOOM = 15;
 // How many nearby-alternative rows each popup lists (see planBAlternatives
 // in markers.js for the selection rationale).
 export const PLANB_COUNT = 3;
+
+// Resident discounts at or above this show the prominent purple badge/chip;
+// smaller ones get the muted style. Used by both the pin badge and the
+// popup chip.
+export const DISCOUNT_BIG_TIER_PCT = 60;

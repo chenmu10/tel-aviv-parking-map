@@ -5,7 +5,7 @@
 // markersByLotId all need each other; splitting them would only create an
 // import cycle.
 
-import { PLANB_COUNT } from "./config.js";
+import { PLANB_COUNT, DISCOUNT_BIG_TIER_PCT, SEARCH_MAX_LOT_DISTANCE_M } from "./config.js";
 import {
   AHUZOT_LINK_BASE, AHUZOT_LINKS,
   RESIDENT_DISCOUNT_BY_AHUZOT_ID, CAPACITY_BY_AHUZOT_ID
@@ -71,7 +71,6 @@ function planBAlternatives(lot, visibleLots, nowMs) {
     const entry = {
       lot: other,
       dist: distanceMeters(lot.lat, lot.lon, other.lat, other.lon),
-      bearing: bearingDegrees(lot.lat, lot.lon, other.lat, other.lon),
       isStale: isLotStale(other, nowMs)
     };
     (st === "פנוי" || st === "מעט" ? withRoom : unknown).push(entry);
@@ -103,7 +102,9 @@ function planBHtml(lot, visibleLots, nowMs) {
       `<span class="planb-name">${escapeHtml(alt.lot.name || "חניון")}</span>` +
       // North-up arrow rotated to the real-world bearing, so the row also
       // says which way the alternative is (map is always north-up).
-      `<span class="planb-arrow" style="transform:rotate(${Math.round(alt.bearing)}deg)" aria-hidden="true">↑</span>` +
+      // Computed here, after the top-3 slice -- doing it per candidate pair
+      // in planBAlternatives would be ~8k wasted atan2 calls per render.
+      `<span class="planb-arrow" style="transform:rotate(${Math.round(bearingDegrees(lot.lat, lot.lon, alt.lot.lat, alt.lot.lon))}deg)" aria-hidden="true">↑</span>` +
       `<span class="planb-dist">${formatDistance(alt.dist)}</span>` +
       "</div>";
   }).join("");
@@ -218,7 +219,7 @@ function popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacit
 
   const chips =
     (capacity ? `<span class="popup-chip">${escapeHtml(capacity)} מקומות</span>` : "") +
-    (discountPct ? `<span class="popup-chip discount ${discountPct >= 60 ? "tier-big" : "tier-small"}">-${discountPct}% תושבים</span>` : "");
+    (discountPct ? `<span class="popup-chip discount ${discountPct >= DISCOUNT_BIG_TIER_PCT ? "tier-big" : "tier-small"}">-${discountPct}% תושבים</span>` : "");
 
   const detailRows =
     `<div class="popup-row">עודכן באחוזות החוף: ${lot.updatedAt ? escapeHtml(formatUpdatedAt(lot.updatedAt)) : "לא ידוע"}</div>` +
@@ -228,7 +229,7 @@ function popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacit
 
   return '<div class="popup-header">' +
       `<span class="popup-title">${escapeHtml(lot.name || "חניון (Parking lot)")}</span>` +
-      `<span class="popup-status-mini" style="background:${info.hex}1a;color:${info.hex}">${info.short || info.label}</span>` +
+      `<span class="popup-status-mini" style="background:${info.hex}1a;color:${info.hex}" title="${info.label}">${info.short}</span>` +
     "</div>" +
     `<div class="popup-sub">${escapeHtml(lot.address || "")}${lot.address ? " · " : ""}<span class="popup-updated${isStale ? " stale" : ""}">${updatedAgo}</span></div>` +
     (isStale
@@ -256,6 +257,11 @@ function popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacit
 export function renderLots(lots) {
   // Snapshot before clearLayers: clearing fires popupclose, nulling it.
   const reopenLotId = openPopupLotId;
+  // Also snapshot whether the details expander is open -- the rebuilt
+  // popup HTML starts collapsed, and snapping the tariff text shut mid-read
+  // on the 2-minute poll is a state loss the old always-visible rows
+  // never had.
+  const reopenDetailsOpen = !!document.querySelector(".leaflet-popup .popup-details[open]");
   markersLayer.clearLayers();
   markersByLotId = {};
   const nowMs = israelNowMs();
@@ -288,7 +294,7 @@ export function renderLots(lots) {
     const capacity = lot.capacity || (ahuzotId && CAPACITY_BY_AHUZOT_ID[ahuzotId]);
     let discountBadge = "";
     if (discountPct) {
-      const discountTier = discountPct >= 60 ? "tier-big" : "tier-small";
+      const discountTier = discountPct >= DISCOUNT_BIG_TIER_PCT ? "tier-big" : "tier-small";
       discountBadge = `<span class="discount-badge ${discountTier}">-${discountPct}%</span>`;
     }
 
@@ -313,6 +319,10 @@ export function renderLots(lots) {
   // vanish. Reopen the same lot's popup with the freshly rendered content.
   if (reopenLotId != null && markersByLotId[reopenLotId]) {
     markersByLotId[reopenLotId].openPopup();
+    if (reopenDetailsOpen) {
+      const details = document.querySelector(".leaflet-popup .popup-details");
+      if (details) details.open = true;
+    }
   }
 
   // Consume the #lot= deep link on the first render, hit or miss -- a
@@ -333,30 +343,26 @@ export function renderLots(lots) {
   }
 }
 
-// Nearest lot to an arbitrary point that the feed doesn't say is full,
-// for the address search. Unlike Plan B (which ranks fresh statuses
-// first), plain distance wins here: the user asked for the closest lot to
-// an address, and the popup itself surfaces staleness. Falls back to the
-// absolute nearest lot if everything nearby is full; null before the
-// first render.
-export function nearestOpenLot(lat, lon) {
+// Opens the popup of the nearest lot to (lat, lon) that the feed doesn't
+// say is full, for the address search. Unlike Plan B (which ranks fresh
+// statuses first), plain distance wins here: the user asked for the
+// closest lot to an address, and the popup itself surfaces staleness.
+// Returns false -- so the caller can tell the user -- when lots haven't
+// loaded yet or the nearest candidate exceeds SEARCH_MAX_LOT_DISTANCE_M
+// (a "nearby" lot kilometers away would just autopan the map off the
+// searched address).
+export function openNearestOpenLot(lat, lon) {
   let best = null;
-  let bestAny = null;
   lastVisibleLots.forEach((lot) => {
-    const dist = distanceMeters(lat, lon, lot.lat, lot.lon);
-    if (!bestAny || dist < bestAny.dist) bestAny = { lot, dist };
     if ((lot.status || "").trim() === "מלא") return;
+    const dist = distanceMeters(lat, lon, lot.lat, lot.lon);
     if (!best || dist < best.dist) best = { lot, dist };
   });
-  const pick = best || bestAny;
-  return pick ? pick.lot : null;
-}
-
-// Opens a lot's popup if its marker exists in the current render.
-export function openLotPopup(lotId) {
-  const marker = markersByLotId[lotId];
-  if (marker) marker.openPopup();
-  return !!marker;
+  if (!best || best.dist > SEARCH_MAX_LOT_DISTANCE_M) return false;
+  const marker = markersByLotId[best.lot.id];
+  if (!marker) return false;
+  marker.openPopup();
+  return true;
 }
 
 // deepLinkLotId: the #lot= id parsed once by main.js (or null). Delegated
@@ -369,6 +375,11 @@ export function initMarkers(leafletMap, deepLinkLotId) {
 
   map.on("popupopen", (e) => {
     if (e.popup._source && e.popup._source._lotId != null) openPopupLotId = e.popup._source._lotId;
+    // Re-measure control clearance at open time and re-pan: the padding
+    // baked in at render time can be minutes old, and the pill grows on
+    // error/success flashes (which don't re-render) and on rotation.
+    Object.assign(e.popup.options, popupAutopanPadding());
+    if (typeof e.popup._adjustPan === "function") e.popup._adjustPan();
   });
   map.on("popupclose", (e) => {
     if (e.popup._source && e.popup._source._lotId === openPopupLotId) openPopupLotId = null;

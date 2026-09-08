@@ -2,16 +2,17 @@
 // Hebrew), biased and clipped to the Tel Aviv area. Picking a result marks
 // the address, zooms there, and opens the nearest not-full lot's popup.
 
-import { nearestOpenLot, openLotPopup } from "./markers.js";
+import { TLV_BOUNDS, DEFAULT_VIEW } from "./config.js";
+import { openNearestOpenLot } from "./markers.js";
 
-// Same bounds map-setup accepts for saved views: greater Tel Aviv.
-// Photon bbox order is minLon,minLat,maxLon,maxLat. lang=he is a 400
-// (Photon only supports default/de/en/fr); lang=default returns the local
-// (Hebrew) OSM names and also stops the browser's Accept-Language header
-// from switching results to English.
-const SEARCH_BBOX = "34.6,31.9,34.95,32.25";
-const PHOTON_URL = "https://photon.komoot.io/api/" +
-  "?limit=5&lang=default&lat=32.08&lon=34.77&bbox=" + SEARCH_BBOX + "&q=";
+// Results are biased to the city center and clipped to the shared
+// greater-Tel-Aviv bounds. Photon bbox order is minLon,minLat,maxLon,maxLat.
+// lang=he is a 400 (Photon only supports default/de/en/fr); lang=default
+// returns the local (Hebrew) OSM names and also stops the browser's
+// Accept-Language header from switching results to English.
+const PHOTON_URL = "https://photon.komoot.io/api/?limit=5&lang=default" +
+  `&lat=${DEFAULT_VIEW.lat}&lon=${DEFAULT_VIEW.lon}` +
+  `&bbox=${TLV_BOUNDS.minLon},${TLV_BOUNDS.minLat},${TLV_BOUNDS.maxLon},${TLV_BOUNDS.maxLat}&q=`;
 const MIN_QUERY_LENGTH = 3;
 const DEBOUNCE_MS = 300;
 
@@ -34,12 +35,23 @@ export function initSearch(map) {
   let currentFeatures = [];
 
   function clearResults() {
+    // A dismissed search must stay dismissed: cancel the pending debounce
+    // and abort any in-flight request, or their late results would reopen
+    // the list over an input that no longer holds that query.
+    clearTimeout(debounceTimer);
+    if (inFlight) {
+      inFlight.abort();
+      inFlight = null;
+    }
     resultsEl.replaceChildren();
     resultsEl.style.display = "none";
     currentFeatures = [];
   }
 
   function showNote(text) {
+    // A note replaces the suggestions, so Enter must not still act on the
+    // previous query's rows.
+    currentFeatures = [];
     const note = document.createElement("div");
     note.className = "search-note";
     note.textContent = text;
@@ -92,8 +104,11 @@ export function initSearch(map) {
     // animate:false for the same reason as the deep link: the popup's
     // autopan would cancel an animated setView mid-flight.
     map.setView([lat, lon], Math.max(map.getZoom(), 16), { animate: false });
-    const lot = nearestOpenLot(lat, lon);
-    if (lot) openLotPopup(lot.id);
+    if (!openNearestOpenLot(lat, lon)) {
+      // Lots not loaded yet, or nothing with room close enough -- say so
+      // instead of silently doing nothing after the zoom.
+      showNote("לא נמצא חניון פנוי בקרבת הכתובת (No open lot found nearby)");
+    }
   }
 
   function runSearch(query) {
@@ -123,7 +138,9 @@ export function initSearch(map) {
 
       const input = document.createElement("input");
       input.type = "search";
-      input.placeholder = "חיפוש כתובת… (Address search)";
+      // Hebrew-only placeholder: the bilingual one overflowed the box.
+      input.placeholder = "חיפוש כתובת…";
+      input.title = "חיפוש כתובת (Address search)";
       input.setAttribute("aria-label", "חיפוש כתובת (Address search)");
       div.appendChild(input);
 
@@ -138,6 +155,10 @@ export function initSearch(map) {
       input.addEventListener("input", () => {
         clearTimeout(debounceTimer);
         const query = input.value.trim();
+        // Emptying the box (including the type="search" clear button)
+        // retracts the searched-address dot too, which otherwise had no
+        // way to be removed short of a reload.
+        if (!query) searchLayer.clearLayers();
         if (query.length < MIN_QUERY_LENGTH) {
           clearResults();
           return;
@@ -146,6 +167,11 @@ export function initSearch(map) {
       });
 
       input.addEventListener("keydown", (e) => {
+        // Leaflet's map keyboard handler is bound to the map container and
+        // has no target guard, and disableClickPropagation covers only
+        // mouse/touch -- without this, arrow keys used to fix a typo pan
+        // the map and +/- zoom it while the user is typing.
+        e.stopPropagation();
         if (e.key === "Enter" && currentFeatures.length) {
           e.preventDefault();
           choose(currentFeatures[0]);
@@ -167,6 +193,11 @@ export function initSearch(map) {
         const feature = currentFeatures[Number(row.getAttribute("data-result-index"))];
         if (feature) choose(feature);
       });
+
+      // Turning to the map means the user is done with the suggestions:
+      // without this the dropdown stays parked over the map (above the
+      // popup pane) until they come back and press Escape.
+      map.on("click movestart", clearResults);
 
       // Typing and scrolling in the box must not pan/zoom the map under it.
       L.DomEvent.disableClickPropagation(div);

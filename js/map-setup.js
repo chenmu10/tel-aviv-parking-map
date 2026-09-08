@@ -2,7 +2,7 @@
 // persistence, zoom-gated lot-name labels, and the basemap with its
 // raster fallback.
 
-import { VIEW_STORAGE_KEY, DEFAULT_VIEW, LABEL_MIN_ZOOM, VIEW_MAX_AGE_MS } from "./config.js";
+import { VIEW_STORAGE_KEY, DEFAULT_VIEW, LABEL_MIN_ZOOM, VIEW_MAX_AGE_MS, TLV_BOUNDS } from "./config.js";
 
 // Restore the last map view across reloads -- mobile browsers evict the
 // tab when users hop to Waze and back, and the reload used to reset the
@@ -15,7 +15,7 @@ function loadSavedView() {
     const v = JSON.parse(localStorage.getItem(VIEW_STORAGE_KEY));
     if (!v || !Number.isFinite(v.lat) || !Number.isFinite(v.lon) || !Number.isFinite(v.zoom)) return null;
     if (!Number.isFinite(v.savedAt) || Date.now() - v.savedAt > VIEW_MAX_AGE_MS) return null;
-    if (v.lat < 31.9 || v.lat > 32.25 || v.lon < 34.6 || v.lon > 34.95) return null;
+    if (v.lat < TLV_BOUNDS.minLat || v.lat > TLV_BOUNDS.maxLat || v.lon < TLV_BOUNDS.minLon || v.lon > TLV_BOUNDS.maxLon) return null;
     if (v.zoom < 10 || v.zoom > 19) return null;
     return v;
   } catch (e) {
@@ -73,12 +73,18 @@ export function createMap(skipSavedView) {
   // view and dump them back at the city-wide default on reload.
   const map = L.map("map", { center: [initialView.lat, initialView.lon], zoom: initialView.zoom, maxZoom: 19, zoomControl: false });
 
-  map.on("moveend", () => {
+  const saveView = () => {
     try {
       const c = map.getCenter();
       localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({ lat: c.lat, lon: c.lng, zoom: map.getZoom(), savedAt: Date.now() }));
     } catch (e) { /* storage may be unavailable (private mode); view just won't persist */ }
-  });
+  };
+  map.on("moveend", saveView);
+  // Opening the map counts as activity: stamp the restored (or default)
+  // view now. The constructor's own moveend fired before the handler above
+  // was attached, so without this a session used without panning would
+  // expire mid-use at the 2-hour mark.
+  saveView();
 
   // Lot-name labels only render once zoomed in enough that pins have spread
   // out -- with ~90 lots, showing them at the full-city zoom would be an

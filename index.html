@@ -223,7 +223,7 @@
     <a href="https://www.linkedin.com/in/chen-m/" target="_blank" rel="noopener noreferrer">Contact Me ↗</a>
     <a href="https://github.com/chenmu10/tel-aviv-parking-map/issues/new" target="_blank" rel="noopener noreferrer">Report a bug / request a feature ↗</a>
     <a href="https://opendata.tel-aviv.gov.il/he/dataItem/9/Api" target="_blank" rel="noopener noreferrer">מקור הנתונים — פורטל המידע הפתוח של עיריית ת״א ↗</a>
-    <a href="https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/970/query?where=1%3D1&amp;outFields=oid_hof,shem_chenyon,ktovet,lon,lat,status_chenyon,tr_status_chenyon,mispar_mekomot_bchenyon,taarif_yom,taarif_layla,hearot_taarif&amp;returnGeometry=false&amp;f=pjson" target="_blank" rel="noopener noreferrer">הנתונים הגולמיים שהמפה מציגה (Raw API) ↗</a>
+    <a href="https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/970/query?where=1%3D1&amp;outFields=oid_hof,shem_chenyon,ktovet,lon,lat,status_chenyon,tr_status_chenyon,mispar_mekomot_bchenyon,taarif_yom,taarif_layla,hearot_taarif&amp;returnGeometry=false&amp;f=pjson" id="raw-api-link" target="_blank" rel="noopener noreferrer">הנתונים הגולמיים שהמפה מציגה (Raw API) ↗</a>
     <p class="info-note">המפה מביאה נתונים מאתר אחוזות החוף (עיריית ת״א) כל 2 דקות. "עודכן באחוזות החוף" בכל חניון הוא הזמן שבו הסטטוס עודכן במקור — ולכן יכול לפגר אחרי רענון של המפה.</p>
   </div>
 </div>
@@ -430,7 +430,10 @@
   var pendingDeepLinkLotId = deepLinkLotId();
 
   var initialView = (pendingDeepLinkLotId ? null : loadSavedView()) || DEFAULT_VIEW;
-  var map = L.map("map", { center: [initialView.lat, initialView.lon], zoom: initialView.zoom, zoomControl: false });
+  // maxZoom must live on the map (the old raster layer carried it): without
+  // it users can zoom past 19, and loadSavedView would then reject the saved
+  // view and dump them back at the city-wide default on reload.
+  var map = L.map("map", { center: [initialView.lat, initialView.lon], zoom: initialView.zoom, maxZoom: 19, zoomControl: false });
 
   map.on("moveend", function () {
     try {
@@ -452,24 +455,51 @@
 
   L.control.zoom({ position: "topright" }).addTo(map);
 
-  // MapLibre GL renders Hebrew/Arabic labels with reversed letter order
-  // unless its RTL text plugin is loaded (runs in a worker; lazy = only
-  // fetched once an RTL label is actually on screen).
-  maplibregl.setRTLTextPlugin(
-    "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js",
-    true
-  );
-
-  // OpenFreeMap's Bright vector style (keyless) via MapLibre GL — a
+  // Basemap: OpenFreeMap's Bright vector style (keyless) via MapLibre GL — a
   // colorful basemap replacing the CARTO raster tiles this map had before
-  // CARTO put its basemap CDN behind an API key.
-  L.maplibreGL({
-    style: "https://tiles.openfreemap.org/styles/bright",
-    attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  }).addTo(map);
+  // CARTO put its basemap CDN behind an API key. The vector layer needs
+  // WebGL and two extra CDN scripts, either of which can be missing (older
+  // GPUs, corporate proxies, script blockers) — in that case fall back to
+  // plain OSM raster tiles so the app still works, just with plainer tiles.
+  function addRasterFallbackBasemap() {
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+  }
+
+  if (typeof maplibregl !== "undefined" && typeof L.maplibreGL === "function") {
+    try {
+      // MapLibre GL renders Hebrew/Arabic labels with reversed letter order
+      // unless its RTL text plugin is loaded (runs in a worker; lazy = only
+      // fetched once an RTL label is actually on screen).
+      var rtlPluginLoad = maplibregl.setRTLTextPlugin(
+        "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js",
+        true
+      );
+      if (rtlPluginLoad && typeof rtlPluginLoad.catch === "function") {
+        rtlPluginLoad.catch(function (err) {
+          console.warn("RTL text plugin failed to load; Hebrew basemap labels may render reversed:", err);
+        });
+      }
+      L.maplibreGL({
+        style: "https://tiles.openfreemap.org/styles/bright",
+        attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+    } catch (err) {
+      console.warn("Vector basemap failed (likely WebGL unavailable); falling back to raster tiles:", err);
+      addRasterFallbackBasemap();
+    }
+  } else {
+    addRasterFallbackBasemap();
+  }
 
   var markersLayer = L.layerGroup().addTo(map);
   var userLocationLayer = L.layerGroup().addTo(map);
+
+  // Keep the transparency link honest: derive it from the query the app
+  // actually makes, so an outFields change can't silently desync them.
+  document.getElementById("raw-api-link").href = API_URL.replace("f=json", "f=pjson");
 
   var infoBackdrop = document.getElementById("info-modal-backdrop");
   function openInfoModal() {
@@ -605,7 +635,8 @@
     freshnessText.textContent = "עדכון אחרון באתר אחוזות החוף: " + ago;
     freshnessPill.classList.toggle("aged", seconds * 1000 > STALE_THRESHOLD_MS);
   }
-  setInterval(updateFreshnessPill, 15000);
+  // 60s matches the label's coarsest visible step (minutes).
+  setInterval(updateFreshnessPill, 60000);
 
   var LegendControl = L.Control.extend({
     options: { position: "bottomright" },
@@ -768,12 +799,16 @@
   // way -- not with Date.now(), which is true UTC and would be off by
   // Israel's UTC offset (which itself changes across DST).
   function israelNowMs() {
-    var parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Jerusalem',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-      hour12: false
-    }).formatToParts(new Date());
+    if (!israelNowMs._fmt) {
+      // Intl.DateTimeFormat construction is expensive; build once and reuse.
+      israelNowMs._fmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Jerusalem',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+      });
+    }
+    var parts = israelNowMs._fmt.formatToParts(new Date());
 
     var p = {};
     parts.forEach(function (part) { p[part.type] = part.value; });
@@ -853,6 +888,10 @@
   // says have room (פנוי/מעט); pads with status-unknown lots only when
   // fewer than PLANB_COUNT of those exist nearby.
   var PLANB_COUNT = 3;
+  function isLotStale(lot, nowMs) {
+    return !lot.updatedAt || (nowMs - lot.updatedAt) > STALE_THRESHOLD_MS;
+  }
+
   function planBAlternatives(lot, visibleLots, nowMs) {
     var withRoom = [];
     var unknown = [];
@@ -863,7 +902,7 @@
       var entry = {
         lot: other,
         dist: distanceMeters(lot.lat, lot.lon, other.lat, other.lon),
-        isStale: !other.updatedAt || (nowMs - other.updatedAt) > STALE_THRESHOLD_MS
+        isStale: isLotStale(other, nowMs)
       };
       (st === "פנוי" || st === "מעט" ? withRoom : unknown).push(entry);
     });
@@ -883,6 +922,16 @@
   // popup. Rebuilt on every render (markers are recreated each refresh).
   var markersByLotId = {};
 
+  // Which lot's popup is currently open (null if none) -- lets a re-render
+  // restore the popup it necessarily closes when rebuilding markers.
+  var openPopupLotId = null;
+  map.on("popupopen", function (e) {
+    if (e.popup._source && e.popup._source._lotId != null) openPopupLotId = e.popup._source._lotId;
+  });
+  map.on("popupclose", function (e) {
+    if (e.popup._source && e.popup._source._lotId === openPopupLotId) openPopupLotId = null;
+  });
+
   map.getContainer().addEventListener("click", function (e) {
     var row = e.target.closest && e.target.closest(".popup-planb-row");
     if (!row) return;
@@ -890,7 +939,10 @@
     if (marker) marker.openPopup();
   });
 
-  var SHARE_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.7" x2="15.4" y2="6.3"/><line x1="8.6" y1="13.3" x2="15.4" y2="17.7"/></svg>';
+  // Single source of truth for the share glyph: the popup HTML string is
+  // derived from the same DOM builder used to restore the icon after the
+  // "copied" flash, so the two can't drift apart.
+  var SHARE_SVG = createShareIcon().outerHTML;
 
   function createShareIcon() {
     var svg = document.createElementNS(SVG_NS, "svg");
@@ -944,6 +996,10 @@
           btn.textContent = "";
           btn.appendChild(createShareIcon());
         }, 1600);
+      }).catch(function () {
+        // Clipboard can reject (unfocused document, permissions policy);
+        // fall back to letting the user copy manually.
+        window.prompt("העתק את הקישור (Copy the link):", url);
       });
     } else {
       window.prompt("העתק את הקישור (Copy the link):", url);
@@ -951,6 +1007,8 @@
   });
 
   function renderLots(lots) {
+    // Snapshot before clearLayers: clearing fires popupclose, nulling it.
+    var reopenLotId = openPopupLotId;
     markersLayer.clearLayers();
     markersByLotId = {};
     var nowMs = israelNowMs();
@@ -960,7 +1018,7 @@
     });
     visibleLots.forEach(function (lot) {
       var info = statusInfo(lot.status);
-      var isStale = !lot.updatedAt || (nowMs - lot.updatedAt) > STALE_THRESHOLD_MS;
+      var isStale = isLotStale(lot, nowMs);
 
       var normalizedName = normalizeLotName(lot.name);
       var ahuzotId = Object.prototype.hasOwnProperty.call(AHUZOT_LINKS, normalizedName)
@@ -974,6 +1032,11 @@
       // comment) and only fall back to parsing the GIS text for lots that
       // snapshot doesn't cover.
       var discountPct = (ahuzotId && RESIDENT_DISCOUNT_BY_AHUZOT_ID[ahuzotId]) || lot.residentDiscountPct;
+
+      // Live feed value first: it's 0/null for ~90 lots (snapshot fills the
+      // gap), but when the municipality does populate it, it's newer than
+      // the hand-scraped snapshot.
+      var capacity = lot.capacity || (ahuzotId && CAPACITY_BY_AHUZOT_ID[ahuzotId]);
       var discountBadge = "";
       if (discountPct) {
         var discountTier = discountPct >= 60 ? "tier-big" : "tier-small";
@@ -1019,14 +1082,12 @@
           '<button type="button" class="popup-share" data-lot-id="' + escapeHtml(lot.id) + '" data-lot-name="' + escapeHtml(lot.name || "חניון") + '" data-latlon="' + escapeHtml(lot.lat + "," + lot.lon) + '" title="שתף קישור לחניון (Share)" aria-label="שתף (Share)">' + SHARE_SVG + "</button>" +
         "</div>" +
         (officialLink ? '<div class="popup-row popup-official"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">לעמוד החניון באתר אחוזות החוף (Official page) ↗</a></div>' : "") +
-        (function () {
-          var capacity = (ahuzotId && CAPACITY_BY_AHUZOT_ID[ahuzotId]) || lot.capacity;
-          return capacity ? '<div class="popup-row">מס׳ מקומות חנייה (Capacity): ' + escapeHtml(capacity) + "</div>" : "";
-        })() +
+        (capacity ? '<div class="popup-row">מס׳ מקומות חנייה (Capacity): ' + escapeHtml(capacity) + "</div>" : "") +
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
         planBHtml(lot, visibleLots, nowMs);
 
+      marker._lotId = lot.id;
       marker.bindPopup(popupHtml, POPUP_AUTOPAN_PADDING);
       marker.bindTooltip(escapeHtml(lot.name || "חניון"), {
         permanent: true,
@@ -1039,12 +1100,22 @@
       markersByLotId[lot.id] = marker;
     });
 
+    // Re-renders rebuild every marker, which closes any open popup -- so a
+    // user reading a popup (or tapping refresh to update it) would watch it
+    // vanish. Reopen the same lot's popup with the freshly rendered content.
+    if (reopenLotId != null && markersByLotId[reopenLotId]) {
+      markersByLotId[reopenLotId].openPopup();
+    }
+
     // Consume the #lot= deep link on the first render, hit or miss -- a
     // miss (unknown/closed lot) must not lie in wait and yank the map to
-    // that lot if it reappears in a later auto-refresh.
+    // that lot if it reappears in a later auto-refresh. Clear the hash once
+    // consumed: otherwise every reload (e.g. mobile tab eviction) would
+    // re-hijack the map back to the shared lot instead of the saved view.
     if (pendingDeepLinkLotId != null) {
       var shared = markersByLotId[pendingDeepLinkLotId];
       pendingDeepLinkLotId = null;
+      history.replaceState(null, "", location.pathname + location.search);
       if (shared) {
         // animate:false -- openPopup's autopan would cancel an animated
         // setView mid-flight and strand the map at an in-between zoom.
@@ -1110,7 +1181,12 @@
     fetchInFlight = true;
     if (freshnessPill) freshnessPill.classList.add("loading");
     updateFreshnessPill();
-    fetch(API_URL, { cache: "no-store" })
+    // Abort stuck requests: without this, one black-holed socket (flaky
+    // mobile handoff, captive portal) would leave fetchInFlight true forever
+    // and silently kill every future auto-poll and manual refresh.
+    var abort = new AbortController();
+    var abortTimer = setTimeout(function () { abort.abort(); }, 25000);
+    fetch(API_URL, { cache: "no-store", signal: abort.signal })
       .then(function (res) {
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
@@ -1127,7 +1203,9 @@
         if (freshnessPill) freshnessPill.classList.remove("error");
         hideBanner("fetch");
         hideBanner("load");
-        if (isManual) flashRefreshSuccess(sourceUpdatedAt !== prevSourceUpdatedAt);
+        // "New data" only when a real timestamp advanced -- a transition to
+        // all-null (outage start) is a change, but not good news.
+        if (isManual) flashRefreshSuccess(!!sourceUpdatedAt && sourceUpdatedAt !== prevSourceUpdatedAt);
       })
       .catch(function (err) {
         console.error("Failed to load parking data:", err);
@@ -1135,6 +1213,7 @@
         showBanner("לא ניתן לרענן את נתוני החניה, ננסה שוב (Couldn't refresh parking data, will retry) — " + err.message, "fetch");
       })
       .finally(function () {
+        clearTimeout(abortTimer);
         fetchInFlight = false;
         if (freshnessPill) freshnessPill.classList.remove("loading");
         updateFreshnessPill();

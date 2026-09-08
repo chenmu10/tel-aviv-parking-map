@@ -70,7 +70,7 @@
     cursor: pointer; user-select: none;
   }
   .freshness-pill:hover { background: rgba(248,250,252,.95); }
-  .freshness-pill.error { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+  .freshness-pill.error, .freshness-pill.aged { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
   .freshness-pill.success { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
   .freshness-pill.success .refresh-btn { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
   .freshness-pill .refresh-btn {
@@ -139,10 +139,6 @@
   }
 
   .pin { position: relative; width: 30px; height: 40px; filter: drop-shadow(0 3px 4px rgba(0,0,0,.25)); }
-  .pin.stale { filter: grayscale(.65) opacity(.8) drop-shadow(0 3px 4px rgba(0,0,0,.25)); }
-  .stale-badge {
-    position: absolute; top: -7px; left: -7px; font-size: 11px; line-height: 1;
-  }
   .pin .letter {
     position: absolute; top: 5px; left: 0; width: 30px; text-align: center;
     font-family: var(--font); font-weight: 800; font-size: 12px;
@@ -440,6 +436,8 @@
       return div;
     }
   });
+  var SVG_NS = "http://www.w3.org/2000/svg";
+
   new BrandControl().addTo(map);
 
   // Shows when THIS page last pulled the API (client-side clock, unrelated
@@ -447,19 +445,28 @@
   // manual refresh button — proof the map isn't frozen.
   var freshnessPill = null;
   var freshnessText = null;
-  var lastFetchedAt = null;
+  // Newest tr_status_chenyon across all lots. The feed writes every lot in
+  // one batch sweep (verified: all timestamps within ~240ms of each other),
+  // so this single value IS the data's age -- shown in the pill instead of
+  // per-pin indicators, which would all read the same number.
+  var sourceUpdatedAt = null;
   var fetchInFlight = false;
+  // The feed sometimes serves rows with null status/timestamp on every lot
+  // (observed live during an early-morning window). Distinguishes that from
+  // "first fetch hasn't finished", so the pill doesn't claim to be loading
+  // forever.
+  var hasLoadedOnce = false;
 
   var FreshnessControl = L.Control.extend({
     options: { position: "topleft" },
     onAdd: function () {
       var div = L.DomUtil.create("div", "freshness-pill");
-      div.title = "רענון נתונים (Tap to refresh)";
+      div.title = "בדוק עכשיו אם יש עדכון (Check now for updates)";
 
       var btn = document.createElement("button");
       btn.type = "button";
       btn.className = "refresh-btn";
-      btn.setAttribute("aria-label", "רענון נתונים (Refresh)");
+      btn.setAttribute("aria-label", "בדוק עכשיו אם יש עדכון (Check now for updates)");
       var icon = document.createElement("span");
       icon.className = "refresh-icon";
       icon.textContent = "↻";
@@ -491,17 +498,27 @@
       freshnessText.textContent = "מעדכן נתונים מאתר אחוזות החוף… (Refreshing)";
       return;
     }
-    if (!lastFetchedAt) {
-      freshnessText.textContent = "טוען… (Loading)";
+    if (!sourceUpdatedAt) {
+      if (hasLoadedOnce) {
+        freshnessText.textContent = "אין כרגע נתוני זמינות באתר אחוזות החוף (Source data unavailable)";
+        freshnessPill.classList.add("aged");
+      } else {
+        freshnessText.textContent = "טוען… (Loading)";
+      }
       return;
     }
+    // Source timestamps are Israel wall clock (see israelNowMs), so the age
+    // must be diffed against the same clock, never Date.now().
     // Coarse buckets on purpose: a per-second countdown draws the eye to
     // chrome instead of the map and implies precision the data doesn't have.
-    var seconds = Math.max(0, Math.round((Date.now() - lastFetchedAt) / 1000));
+    var seconds = Math.max(0, Math.round((israelNowMs() - sourceUpdatedAt) / 1000));
     var ago = seconds < 60
       ? "לפני פחות מדקה"
-      : "לפני " + Math.floor(seconds / 60) + " דק׳";
-    freshnessText.textContent = "עודכן מאתר אחוזות החוף " + ago;
+      : seconds < 3600
+        ? "לפני " + Math.floor(seconds / 60) + " דק׳"
+        : "לפני " + Math.floor(seconds / 3600) + " שע׳";
+    freshnessText.textContent = "עדכון אחרון באתר אחוזות החוף: " + ago;
+    freshnessPill.classList.toggle("aged", seconds * 1000 > STALE_THRESHOLD_MS);
   }
   setInterval(updateFreshnessPill, 15000);
 
@@ -544,10 +561,6 @@
       discountRow.appendChild(document.createTextNode("הנחת תושב (Resident discount)"));
       rows.appendChild(discountRow);
 
-      var staleRow = document.createElement("div");
-      staleRow.className = "row";
-      staleRow.appendChild(document.createTextNode("⚠️ מידע לא עדכני (Data may be outdated)"));
-      rows.appendChild(staleRow);
 
       div.appendChild(rows);
 
@@ -562,7 +575,6 @@
   });
   new LegendControl().addTo(map);
 
-  var SVG_NS = "http://www.w3.org/2000/svg";
   function createLocateIcon() {
     var svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("width", "20");
@@ -735,6 +747,7 @@
       rows + '</div>';
   }
 
+
   function distanceMeters(lat1, lon1, lat2, lon2) {
     var R = 6371000;
     var toRad = Math.PI / 180;
@@ -823,12 +836,11 @@
       }
 
       var html =
-        '<div class="pin' + (isStale ? ' stale' : '') + '"><svg width="30" height="40" viewBox="0 0 30 40">' +
+        '<div class="pin"><svg width="30" height="40" viewBox="0 0 30 40">' +
         '<path d="M15 0C6.7 0 0 6.7 0 15c0 10 15 25 15 25s15-15 15-25C30 6.7 23.3 0 15 0z" fill="' + info.hex + '"/>' +
         '<circle cx="15" cy="15" r="7" fill="#fff"/></svg>' +
         '<span class="letter" style="color:' + info.hex + '">P</span>' +
         discountBadge +
-        (isStale ? '<span class="stale-badge">⚠️</span>' : '') +
         '</div>';
       var icon = L.divIcon({ html: html, className: "", iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -36] });
       var marker = L.marker([lot.lat, lot.lon], { icon: icon });
@@ -913,16 +925,21 @@
   // confirmation even when no pin changed (otherwise "did it work?"), so
   // manual refreshes flash a success state; the 2-minute auto-poll stays
   // silent to avoid constant chrome noise.
+  // A manual check usually finds NO new data (the site updates on its own
+  // schedule), so the flash must say "checked, nothing new" rather than
+  // "updated" -- otherwise the unchanged age below reads as a broken button.
   var successFlashTimer = null;
-  function flashRefreshSuccess() {
+  function flashRefreshSuccess(hasNewData) {
     if (!freshnessPill) return;
     clearTimeout(successFlashTimer);
     freshnessPill.classList.add("success");
-    freshnessText.textContent = "✓ הנתונים עודכנו (Updated)";
+    freshnessText.textContent = hasNewData
+      ? "✓ התקבלו נתונים חדשים (New data)"
+      : "✓ נבדק עכשיו — אין עדכון חדש באתר (No new data)";
     successFlashTimer = setTimeout(function () {
       freshnessPill.classList.remove("success");
       updateFreshnessPill();
-    }, 2000);
+    }, 2600);
   }
 
   function loadData(isManual) {
@@ -939,11 +956,15 @@
         if (json.error) throw new Error(json.error.message || "API error");
         var lots = parseLots(json);
         renderLots(lots);
-        lastFetchedAt = Date.now();
+        var prevSourceUpdatedAt = sourceUpdatedAt;
+        sourceUpdatedAt = lots.reduce(function (max, l) {
+          return l.updatedAt && l.updatedAt > max ? l.updatedAt : max;
+        }, 0) || null;
+        hasLoadedOnce = true;
         if (freshnessPill) freshnessPill.classList.remove("error");
         hideBanner("fetch");
         hideBanner("load");
-        if (isManual) flashRefreshSuccess();
+        if (isManual) flashRefreshSuccess(sourceUpdatedAt !== prevSourceUpdatedAt);
       })
       .catch(function (err) {
         console.error("Failed to load parking data:", err);

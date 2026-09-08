@@ -1,9 +1,10 @@
 # חניוני אחוזת החוף תל אביב (Tel Aviv Parking Map)
 
-A single static page showing live parking-lot availability for Tel Aviv's
+A static site showing live parking-lot availability for Tel Aviv's
 Ahuzot HaHof coastal parking lots on a map, color-coded by status
 (available / few spaces / full / closed). UI is Hebrew-first, with English
 in parentheses for the mixed Hebrew/English audience it's built for.
+No build step: plain HTML, CSS, and native ES modules, served as-is.
 
 Live: https://chenmu10.github.io/tel-aviv-parking-map/
 
@@ -41,7 +42,25 @@ layer 970 ("חניוני אחוזות החוף"), fetched directly from the brow
 Per-lot capacity and resident-discount figures are hand-refreshed snapshots
 scraped from each lot's ahuzot.co.il page (the GIS feed leaves those mostly empty).
 
+## Code layout
+
+```
+index.html          page shell: meta/PWA tags, DOM skeleton, CDN scripts
+css/style.css       all styles
+js/main.js          entry point: wires map, chrome, markers, data polling
+js/config.js        constants (API URL, refresh cadence, statuses, map defaults)
+js/lot-data.js      hand-maintained snapshots (ahuzot.co.il links, discounts, capacities)
+js/format.js        pure helpers: Israel wall-clock time math, formatting, distance
+js/api.js           GIS feed fetch + parsing
+js/map-setup.js     Leaflet map, basemap + raster fallback, view persistence
+js/controls.js      banner, brand/info modal, legend, locate button
+js/freshness.js     freshness pill + fetch-lifecycle state
+js/markers.js       pins, popups, Plan B alternatives, share, #lot= deep links
+```
+
 ## Run locally
+
+A local HTTP server is required (ES modules don't load from `file://`):
 
 ```
 python3 -m http.server

@@ -7,6 +7,12 @@ in parentheses for the mixed Hebrew/English audience it's built for.
 
 Live: https://chenmu10.github.io/tel-aviv-parking-map/ _(once GitHub Pages is enabled on the repo)_
 
+## Screenshots
+
+| Live map | Lot popup |
+|---|---|
+| ![Live availability map](docs/screenshots/map-overview.png) | ![Lot popup with status, capacity, tariffs, nearby lots and share](docs/screenshots/popup-detail.png) |
+
 ## Features
 
 - Live availability map with color-coded status pins, filtered to exclude closed lots

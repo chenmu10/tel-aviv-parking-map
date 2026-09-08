@@ -181,11 +181,14 @@
   .popup-nav a img { width: 40px; height: 40px; border-radius: 9px; display: block; }
   .popup-planb { border-top: 1px solid #eef1f5; margin-top: 8px; padding-top: 6px; }
   .popup-planb-title { font-size: 11.5px; font-weight: 600; color: #5b6472; margin-bottom: 2px; }
-  .popup-planb-row { display: flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 12.5px; }
+  .popup-planb-row { display: flex; align-items: center; gap: 7px; padding: 4px 4px; margin: 0 -4px; font-size: 12.5px; cursor: pointer; border-radius: 7px; }
+  .popup-planb-row:hover { background: #f1f5f9; }
   .popup-planb-row .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .popup-planb-row.stale .dot { filter: grayscale(.65); opacity: .55; }
+  .popup-planb-row .planb-stale { font-size: 10px; line-height: 1; }
   .popup-planb-row .planb-name { flex: 1; color: #16181d; }
   .popup-planb-row .planb-dist { font-size: 11px; color: #9aa2ad; }
-  .popup-planb-row a { color: #2563eb; font-weight: 600; text-decoration: none; font-size: 11.5px; white-space: nowrap; }
+  .popup-planb-row .planb-chevron { color: #9aa2ad; font-size: 14px; line-height: 1; }
   .popup-updated { font-size: 12px; color: #16181d; margin: 2px 0 6px; }
   .popup-updated.stale { color: #9a3412; }
   .popup-official { margin-top: 8px; }
@@ -710,17 +713,21 @@
       .replace(/"/g, "&quot;");
   }
 
-  function planBHtml(lot, visibleLots) {
-    var alts = planBAlternatives(lot, visibleLots);
+  // Rows deliberately open the alternative's own popup (via the delegated
+  // click handler below) rather than deep-linking straight into Waze: the
+  // user should see that lot's update time and stale warning before
+  // committing to drive there.
+  function planBHtml(lot, visibleLots, nowMs) {
+    var alts = planBAlternatives(lot, visibleLots, nowMs);
     if (!alts.length) return "";
     var rows = alts.map(function (alt) {
       var altInfo = statusInfo(alt.lot.status);
-      var ll = encodeURIComponent(alt.lot.lat + "," + alt.lot.lon);
-      return '<div class="popup-planb-row">' +
+      return '<div class="popup-planb-row' + (alt.isStale ? ' stale' : '') + '" data-lot-id="' + escapeHtml(alt.lot.id) + '">' +
         '<span class="dot" style="background:' + altInfo.hex + '"></span>' +
+        (alt.isStale ? '<span class="planb-stale">⚠️</span>' : '') +
         '<span class="planb-name">' + escapeHtml(alt.lot.name || "חניון") + '</span>' +
         '<span class="planb-dist">' + formatDistance(alt.dist) + '</span>' +
-        '<a href="https://waze.com/ul?ll=' + ll + '&navigate=yes" target="_blank" rel="noopener noreferrer">נווט ←</a>' +
+        '<span class="planb-chevron">‹</span>' +
         '</div>';
     }).join("");
     return '<div class="popup-planb">' +
@@ -748,25 +755,46 @@
   // says have room (פנוי/מעט); pads with status-unknown lots only when
   // fewer than PLANB_COUNT of those exist nearby.
   var PLANB_COUNT = 3;
-  function planBAlternatives(lot, visibleLots) {
+  function planBAlternatives(lot, visibleLots, nowMs) {
     var withRoom = [];
     var unknown = [];
     visibleLots.forEach(function (other) {
       if (other === lot) return;
       var st = (other.status || "").trim();
       if (st === "מלא") return;
-      var entry = { lot: other, dist: distanceMeters(lot.lat, lot.lon, other.lat, other.lon) };
+      var entry = {
+        lot: other,
+        dist: distanceMeters(lot.lat, lot.lon, other.lat, other.lon),
+        isStale: !other.updatedAt || (nowMs - other.updatedAt) > STALE_THRESHOLD_MS
+      };
       (st === "פנוי" || st === "מעט" ? withRoom : unknown).push(entry);
     });
-    var byDist = function (a, b) { return a.dist - b.dist; };
-    withRoom.sort(byDist);
-    unknown.sort(byDist);
+    // Fresh statuses outrank stale ones: a stale "available" is a weaker
+    // promise than a fresh one, whatever the distance.
+    var byFreshThenDist = function (a, b) {
+      if (a.isStale !== b.isStale) return a.isStale ? 1 : -1;
+      return a.dist - b.dist;
+    };
+    withRoom.sort(byFreshThenDist);
+    unknown.sort(byFreshThenDist);
     return withRoom.slice(0, PLANB_COUNT)
       .concat(unknown.slice(0, Math.max(0, PLANB_COUNT - withRoom.length)));
   }
 
+  // lot id -> its current marker, so Plan B rows can open another lot's
+  // popup. Rebuilt on every render (markers are recreated each refresh).
+  var markersByLotId = {};
+
+  map.getContainer().addEventListener("click", function (e) {
+    var row = e.target.closest && e.target.closest(".popup-planb-row");
+    if (!row) return;
+    var marker = markersByLotId[row.getAttribute("data-lot-id")];
+    if (marker) marker.openPopup();
+  });
+
   function renderLots(lots) {
     markersLayer.clearLayers();
+    markersByLotId = {};
     var nowMs = israelNowMs();
     var visibleLots = lots.filter(function (lot) {
       return Number.isFinite(lot.lat) && Number.isFinite(lot.lon) &&
@@ -835,7 +863,7 @@
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
         (lot.capacity ? '<div class="popup-row">קיבולת (Capacity): ' + escapeHtml(lot.capacity) + "</div>" : "") +
-        planBHtml(lot, visibleLots) +
+        planBHtml(lot, visibleLots, nowMs) +
         (officialLink ? '<div class="popup-row popup-official"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">לעמוד החניון באתר אחוזות החוף (Official page) ↗</a></div>' : "");
 
       marker.bindPopup(popupHtml, POPUP_AUTOPAN_PADDING);
@@ -847,6 +875,7 @@
         interactive: false
       });
       markersLayer.addLayer(marker);
+      markersByLotId[lot.id] = marker;
     });
   }
 

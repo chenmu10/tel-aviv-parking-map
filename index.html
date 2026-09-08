@@ -376,6 +376,26 @@
     131: 75, 132: 75, 134: 75, 135: 75, 137: 75, 140: 75
   };
 
+  // Parking-spot counts per lot, keyed by ahuzot.co.il ID. The GIS feed's
+  // capacity field (mispar_mekomot_bchenyon) is 0/null for ~90 of 94 lots,
+  // so this is a one-time snapshot of "מס' מקומות חנייה בחניון" scraped from
+  // each lot's ahuzot.co.il page (2026-09-08). Capacities change rarely;
+  // refresh by hand occasionally, like RESIDENT_DISCOUNT_BY_AHUZOT_ID.
+  // Lot 138 (בן יוסף) shows no capacity on their site.
+  var CAPACITY_BY_AHUZOT_ID = {
+    1: 250, 2: 50, 3: 196, 4: 68, 7: 60, 8: 235, 10: 937, 12: 319,
+    13: 69, 15: 110, 16: 84, 18: 36, 19: 53, 20: 113, 21: 260, 23: 143,
+    24: 243, 25: 260, 26: 186, 28: 590, 29: 18, 31: 83, 32: 191, 33: 51,
+    34: 448, 37: 311, 38: 66, 39: 135, 40: 102, 41: 485, 42: 49, 44: 20,
+    45: 165, 48: 62, 50: 263, 53: 121, 54: 50, 55: 80, 56: 90, 57: 70,
+    58: 40, 62: 70, 63: 21, 64: 70, 65: 68, 67: 18, 68: 100, 69: 84,
+    70: 350, 72: 53, 75: 27, 76: 20, 77: 55, 79: 153, 80: 400, 81: 65,
+    85: 200, 87: 40, 88: 60, 89: 100, 90: 214, 91: 114, 93: 558, 94: 997,
+    95: 490, 96: 114, 98: 297, 99: 1310, 108: 104, 110: 115, 114: 124, 119: 53,
+    120: 50, 121: 567, 122: 100, 123: 162, 124: 82, 126: 147, 127: 168, 129: 41,
+    131: 185, 132: 260, 133: 100, 134: 1495, 135: 390, 137: 60, 140: 240
+  };
+
   function statusInfo(rawStatus) {
     var key = (rawStatus || "").trim();
     return STATUS_INFO[key] || DEFAULT_STATUS;
@@ -1000,7 +1020,10 @@
         "</div>" +
         (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
         (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
-        (lot.capacity ? '<div class="popup-row">קיבולת (Capacity): ' + escapeHtml(lot.capacity) + "</div>" : "") +
+        (function () {
+          var capacity = (ahuzotId && CAPACITY_BY_AHUZOT_ID[ahuzotId]) || lot.capacity;
+          return capacity ? '<div class="popup-row">מס׳ מקומות חנייה (Capacity): ' + escapeHtml(capacity) + "</div>" : "";
+        })() +
         planBHtml(lot, visibleLots, nowMs) +
         (officialLink ? '<div class="popup-row popup-official"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">לעמוד החניון באתר אחוזות החוף (Official page) ↗</a></div>' : "");
 

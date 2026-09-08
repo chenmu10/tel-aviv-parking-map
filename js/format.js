@@ -92,3 +92,15 @@ export function distanceMeters(lat1, lon1, lat2, lon2) {
 export function formatDistance(m) {
   return m < 1000 ? Math.round(m / 10) * 10 + " מ׳" : (m / 1000).toFixed(1) + " ק״מ";
 }
+
+// Initial bearing from point 1 to point 2, in degrees clockwise from north
+// (0 = north, 90 = east). Used to rotate the nearby-lot direction arrows;
+// the map is always north-up, so screen-up equals bearing 0.
+export function bearingDegrees(lat1, lon1, lat2, lon2) {
+  const toRad = Math.PI / 180;
+  const dLon = (lon2 - lon1) * toRad;
+  const y = Math.sin(dLon) * Math.cos(lat2 * toRad);
+  const x = Math.cos(lat1 * toRad) * Math.sin(lat2 * toRad) -
+    Math.sin(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.cos(dLon);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}

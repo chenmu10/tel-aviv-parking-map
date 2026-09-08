@@ -12,7 +12,7 @@ import {
 } from "./lot-data.js";
 import {
   normalizeLotName, statusInfo, formatUpdatedAt, israelNowMs, formatAgo,
-  isLotStale, escapeHtml, distanceMeters, formatDistance
+  isLotStale, escapeHtml, distanceMeters, formatDistance, bearingDegrees
 } from "./format.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -32,13 +32,24 @@ let markersByLotId = {};
 // restore the popup it necessarily closes when rebuilding markers.
 let openPopupLotId = null;
 
+// The lots from the most recent render, for lookups that start outside the
+// render loop (the address search's nearest-lot query).
+let lastVisibleLots = [];
+
 // Keeps popups clear of the fixed corner controls when Leaflet auto-pans
 // them into view -- without this, a popup near the top can end up under
 // the zoom control, and one near the bottom under the legend.
-const POPUP_AUTOPAN_PADDING = {
-  autoPanPaddingTopLeft: L.point(16, 90),
-  autoPanPaddingBottomRight: L.point(190, 160)
-};
+// Measured from the real control corners, not fixed numbers: on narrow
+// phones the brand + pill stack wraps and grows well past the 90px the
+// old constant assumed, which parked popups underneath the pill.
+function popupAutopanPadding() {
+  const topLeft = document.querySelector(".leaflet-top.leaflet-left");
+  const bottomRight = document.querySelector(".leaflet-bottom.leaflet-right");
+  return {
+    autoPanPaddingTopLeft: L.point(16, (topLeft ? topLeft.offsetHeight : 80) + 12),
+    autoPanPaddingBottomRight: L.point(190, Math.max(160, (bottomRight ? bottomRight.offsetHeight : 150) + 12))
+  };
+}
 
 // --- Plan B: nearby alternatives ---------------------------------------------
 
@@ -56,6 +67,7 @@ function planBAlternatives(lot, visibleLots, nowMs) {
     const entry = {
       lot: other,
       dist: distanceMeters(lot.lat, lot.lon, other.lat, other.lon),
+      bearing: bearingDegrees(lot.lat, lot.lon, other.lat, other.lon),
       isStale: isLotStale(other, nowMs)
     };
     (st === "פנוי" || st === "מעט" ? withRoom : unknown).push(entry);
@@ -85,6 +97,9 @@ function planBHtml(lot, visibleLots, nowMs) {
       `<span class="dot" style="background:${altInfo.hex}"></span>` +
       (alt.isStale ? '<span class="planb-stale">⚠️</span>' : "") +
       `<span class="planb-name">${escapeHtml(alt.lot.name || "חניון")}</span>` +
+      // North-up arrow rotated to the real-world bearing, so the row also
+      // says which way the alternative is (map is always north-up).
+      `<span class="planb-arrow" style="transform:rotate(${Math.round(alt.bearing)}deg)" aria-hidden="true">↑</span>` +
       `<span class="planb-dist">${formatDistance(alt.dist)}</span>` +
       '<span class="planb-chevron">‹</span>' +
       "</div>";
@@ -222,10 +237,12 @@ export function renderLots(lots) {
   markersLayer.clearLayers();
   markersByLotId = {};
   const nowMs = israelNowMs();
+  const autopanPadding = popupAutopanPadding();
   const visibleLots = lots.filter((lot) => {
     return Number.isFinite(lot.lat) && Number.isFinite(lot.lon) &&
       (lot.status || "").trim() !== "סגור";
   });
+  lastVisibleLots = visibleLots;
   visibleLots.forEach((lot) => {
     const info = statusInfo(lot.status);
     const isStale = isLotStale(lot, nowMs);
@@ -257,7 +274,7 @@ export function renderLots(lots) {
     const marker = L.marker([lot.lat, lot.lon], { icon: icon });
 
     marker._lotId = lot.id;
-    marker.bindPopup(popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacity), POPUP_AUTOPAN_PADDING);
+    marker.bindPopup(popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacity), autopanPadding);
     marker.bindTooltip(escapeHtml(lot.name || "חניון"), {
       permanent: true,
       direction: "top",
@@ -292,6 +309,32 @@ export function renderLots(lots) {
       shared.openPopup();
     }
   }
+}
+
+// Nearest lot to an arbitrary point that the feed doesn't say is full,
+// for the address search. Unlike Plan B (which ranks fresh statuses
+// first), plain distance wins here: the user asked for the closest lot to
+// an address, and the popup itself surfaces staleness. Falls back to the
+// absolute nearest lot if everything nearby is full; null before the
+// first render.
+export function nearestOpenLot(lat, lon) {
+  let best = null;
+  let bestAny = null;
+  lastVisibleLots.forEach((lot) => {
+    const dist = distanceMeters(lat, lon, lot.lat, lot.lon);
+    if (!bestAny || dist < bestAny.dist) bestAny = { lot, dist };
+    if ((lot.status || "").trim() === "מלא") return;
+    if (!best || dist < best.dist) best = { lot, dist };
+  });
+  const pick = best || bestAny;
+  return pick ? pick.lot : null;
+}
+
+// Opens a lot's popup if its marker exists in the current render.
+export function openLotPopup(lotId) {
+  const marker = markersByLotId[lotId];
+  if (marker) marker.openPopup();
+  return !!marker;
 }
 
 // deepLinkLotId: the #lot= id parsed once by main.js (or null). Delegated

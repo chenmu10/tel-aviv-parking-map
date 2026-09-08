@@ -1018,14 +1018,14 @@
           "</a>" +
           '<button type="button" class="popup-share" data-lot-id="' + escapeHtml(lot.id) + '" data-lot-name="' + escapeHtml(lot.name || "חניון") + '" data-latlon="' + escapeHtml(lot.lat + "," + lot.lon) + '" title="שתף קישור לחניון (Share)" aria-label="שתף (Share)">' + SHARE_SVG + "</button>" +
         "</div>" +
-        (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
-        (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
+        (officialLink ? '<div class="popup-row popup-official"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">לעמוד החניון באתר אחוזות החוף (Official page) ↗</a></div>' : "") +
         (function () {
           var capacity = (ahuzotId && CAPACITY_BY_AHUZOT_ID[ahuzotId]) || lot.capacity;
           return capacity ? '<div class="popup-row">מס׳ מקומות חנייה (Capacity): ' + escapeHtml(capacity) + "</div>" : "";
         })() +
-        planBHtml(lot, visibleLots, nowMs) +
-        (officialLink ? '<div class="popup-row popup-official"><a href="' + officialLink + '" target="_blank" rel="noopener noreferrer">לעמוד החניון באתר אחוזות החוף (Official page) ↗</a></div>' : "");
+        (lot.tariffDay ? '<div class="popup-row">' + escapeHtml(lot.tariffDay) + "</div>" : "") +
+        (lot.tariffNight ? '<div class="popup-row">לילה (Night): ' + escapeHtml(lot.tariffNight) + "</div>" : "") +
+        planBHtml(lot, visibleLots, nowMs);
 
       marker.bindPopup(popupHtml, POPUP_AUTOPAN_PADDING);
       marker.bindTooltip(escapeHtml(lot.name || "חניון"), {

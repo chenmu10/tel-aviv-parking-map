@@ -196,38 +196,55 @@ function pinHtml(info, discountBadge) {
     "</div>";
 }
 
-function popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacity) {
+// "Action-first" layout: name + compact status pill, one meta line, big
+// Waze/Maps buttons, key facts as chips, then everything long (full
+// timestamp, tariff free text, official link) folded into a native
+// <details> expander so the tariff wall no longer dominates the popup.
+function popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacity, discountPct) {
   // Always navigate by lat/lon, not the lot's street address: addresses
   // like "הנמל 1" are ambiguous (e.g. Tel Aviv Port vs. Jaffa Port) and
   // Waze/Google's geocoder can resolve them to the wrong place entirely.
   // The GIS coordinates are exact, so they're the reliable choice.
   const destinationParam = encodeURIComponent(lot.lat + "," + lot.lon);
 
-  return `<div class="popup-title">${escapeHtml(lot.name || "חניון (Parking lot)")}</div>` +
-    `<div class="popup-addr">${escapeHtml(lot.address || "")}</div>` +
-    `<div class="popup-status" style="background:${info.hex}1a;color:${info.hex}">${info.label}</div>` +
-    `<div class="popup-updated${isStale ? " stale" : ""}">עודכן באחוזות החוף ` +
-      (lot.updatedAt
-        ? `${escapeHtml(formatAgo(lot.updatedAt, nowMs))} (${escapeHtml(formatUpdatedAt(lot.updatedAt))})`
-        : "בזמן לא ידוע (unknown)") + "</div>" +
+  const updatedAgo = lot.updatedAt
+    ? `עודכן ${escapeHtml(formatAgo(lot.updatedAt, nowMs))}`
+    : "עודכן בזמן לא ידוע";
+
+  const chips =
+    (capacity ? `<span class="popup-chip">${escapeHtml(capacity)} מקומות</span>` : "") +
+    (discountPct ? `<span class="popup-chip discount ${discountPct >= 60 ? "tier-big" : "tier-small"}">-${discountPct}% תושבים</span>` : "");
+
+  const detailRows =
+    `<div class="popup-row">עודכן באחוזות החוף: ${lot.updatedAt ? escapeHtml(formatUpdatedAt(lot.updatedAt)) : "לא ידוע"}</div>` +
+    (lot.tariffDay ? `<div class="popup-row">${escapeHtml(lot.tariffDay)}</div>` : "") +
+    (lot.tariffNight ? `<div class="popup-row">לילה (Night): ${escapeHtml(lot.tariffNight)}</div>` : "") +
+    (officialLink ? `<div class="popup-row popup-official"><a href="${officialLink}" target="_blank" rel="noopener noreferrer">לעמוד החניון באתר אחוזות החוף (Official page) ↗</a></div>` : "");
+
+  return '<div class="popup-header">' +
+      `<span class="popup-title">${escapeHtml(lot.name || "חניון (Parking lot)")}</span>` +
+      `<span class="popup-status-mini" style="background:${info.hex}1a;color:${info.hex}">${info.short || info.label}</span>` +
+    "</div>" +
+    `<div class="popup-sub">${escapeHtml(lot.address || "")}${lot.address ? " · " : ""}<span class="popup-updated${isStale ? " stale" : ""}">${updatedAgo}</span></div>` +
     (isStale
       ? '<div class="popup-stale-warning">⚠️ הסטטוס לא עודכן ' +
         escapeHtml(lot.updatedAt ? formatAgo(lot.updatedAt, nowMs).replace(/^לפני /, "מזה ") : "זמן רב") +
         " — ייתכן שאינו מדויק (Status may be outdated)</div>"
       : "") +
     '<div class="popup-nav">' +
-      `<a href="https://waze.com/ul?ll=${destinationParam}&navigate=yes" target="_blank" rel="noopener noreferrer" aria-label="Waze" title="Waze">` +
-        '<img src="waze-icon.png" alt="" width="40" height="40" />' +
+      `<a class="popup-nav-btn" href="https://waze.com/ul?ll=${destinationParam}&navigate=yes" target="_blank" rel="noopener noreferrer" aria-label="Waze" title="Waze">` +
+        '<img src="waze-icon.png" alt="" width="22" height="22" />Waze' +
       "</a>" +
-      `<a href="https://www.google.com/maps/dir/?api=1&destination=${destinationParam}" target="_blank" rel="noopener noreferrer" aria-label="Google Maps" title="Google Maps">` +
-        '<img src="google-maps-icon.png" alt="" width="40" height="40" />' +
+      `<a class="popup-nav-btn" href="https://www.google.com/maps/dir/?api=1&destination=${destinationParam}" target="_blank" rel="noopener noreferrer" aria-label="Google Maps" title="Google Maps">` +
+        '<img src="google-maps-icon.png" alt="" width="22" height="22" />Maps' +
       "</a>" +
       `<button type="button" class="popup-share" data-lot-id="${escapeHtml(lot.id)}" data-lot-name="${escapeHtml(lot.name || "חניון")}" data-latlon="${escapeHtml(lot.lat + "," + lot.lon)}" title="שתף קישור לחניון (Share)" aria-label="שתף (Share)">${SHARE_SVG}</button>` +
     "</div>" +
-    (officialLink ? `<div class="popup-row popup-official"><a href="${officialLink}" target="_blank" rel="noopener noreferrer">לעמוד החניון באתר אחוזות החוף (Official page) ↗</a></div>` : "") +
-    (capacity ? `<div class="popup-row">מס׳ מקומות חנייה (Capacity): ${escapeHtml(capacity)}</div>` : "") +
-    (lot.tariffDay ? `<div class="popup-row">${escapeHtml(lot.tariffDay)}</div>` : "") +
-    (lot.tariffNight ? `<div class="popup-row">לילה (Night): ${escapeHtml(lot.tariffNight)}</div>` : "") +
+    (chips ? `<div class="popup-chips">${chips}</div>` : "") +
+    '<details class="popup-details">' +
+      '<summary>פרטים נוספים ומחירון (Details) <span class="details-chevron">▾</span></summary>' +
+      `<div class="popup-details-body">${detailRows}</div>` +
+    "</details>" +
     planBHtml(lot, visibleLots, nowMs);
 }
 
@@ -274,7 +291,7 @@ export function renderLots(lots) {
     const marker = L.marker([lot.lat, lot.lon], { icon: icon });
 
     marker._lotId = lot.id;
-    marker.bindPopup(popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacity), autopanPadding);
+    marker.bindPopup(popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacity, discountPct), autopanPadding);
     marker.bindTooltip(escapeHtml(lot.name || "חניון"), {
       permanent: true,
       direction: "top",
@@ -354,4 +371,17 @@ export function initMarkers(leafletMap, deepLinkLotId) {
 
   map.getContainer().addEventListener("click", onPlanBClick);
   map.getContainer().addEventListener("click", onShareClick);
+
+  // Expanding the details section grows an already-open popup, but Leaflet
+  // only auto-pans on open -- without this the grown popup's top half ends
+  // up under the map controls. 'toggle' doesn't bubble, so capture it.
+  // _adjustPan is private but stable in the pinned leaflet@1.9.4; the
+  // public update() is unusable here -- it re-sets the popup's HTML, which
+  // would snap the <details> the user just opened back shut.
+  map.getContainer().addEventListener("toggle", (e) => {
+    if (!e.target.closest || !e.target.closest(".leaflet-popup")) return;
+    const marker = openPopupLotId != null && markersByLotId[openPopupLotId];
+    const popup = marker && marker.getPopup();
+    if (popup && popup.isOpen() && typeof popup._adjustPan === "function") popup._adjustPan();
+  }, true);
 }

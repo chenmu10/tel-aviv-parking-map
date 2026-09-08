@@ -160,21 +160,46 @@ html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font); }
 
 .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 8px 24px rgba(16,24,40,.14); }
 .leaflet-popup-content { font-family: var(--font); margin: 12px 14px; font-size: 13px; direction: rtl; text-align: right; }
-.popup-title { font-weight: 700; font-size: 15px; color: #16181d; }
-.popup-addr { color: #5b6472; font-size: 12.5px; margin: 2px 0 8px; }
-.popup-status { display: inline-block; padding: 3px 9px; border-radius: 999px; font-weight: 700; font-size: 11.5px; margin-bottom: 6px; }
-.popup-row { font-size: 12.5px; margin: 2px 0; color: #16181d; }
-.popup-nav { display: flex; gap: 18px; margin: 6px 0; }
-.popup-nav a {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 44px; height: 44px;
+.popup-header { display: flex; align-items: center; gap: 8px; }
+.popup-title { font-weight: 700; font-size: 15px; color: #16181d; flex: 1; }
+.popup-status-mini {
+  padding: 2px 8px; border-radius: 999px; font-weight: 700; font-size: 11px;
+  white-space: nowrap; flex-shrink: 0;
 }
-.popup-nav a img { width: 40px; height: 40px; border-radius: 9px; display: block; }
+.popup-sub { color: #5b6472; font-size: 12px; margin: 2px 0 8px; }
+.popup-sub .popup-updated { font-size: inherit; color: inherit; margin: 0; }
+.popup-sub .popup-updated.stale { color: #9a3412; }
+.popup-row { font-size: 12.5px; margin: 2px 0; color: #16181d; }
+.popup-nav { display: flex; gap: 8px; margin: 8px 0; }
+.popup-nav .popup-nav-btn {
+  flex: 1; height: 40px; border-radius: 10px; background: #eef1f5;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  font-weight: 600; font-size: 13px; color: #16181d; text-decoration: none;
+}
+.popup-nav .popup-nav-btn:hover { background: #e2e6eb; }
+.popup-nav .popup-nav-btn img { width: 22px; height: 22px; border-radius: 5px; display: block; }
 .popup-nav .popup-share {
-  width: 40px; height: 40px; border-radius: 9px; border: none; cursor: pointer;
-  background: #eef1f5; color: #2563eb; display: inline-flex;
+  width: 40px; height: 40px; border-radius: 10px; border: none; cursor: pointer;
+  background: #eef1f5; color: #2563eb; display: inline-flex; flex-shrink: 0;
   align-items: center; justify-content: center; padding: 0; font-family: var(--font);
 }
+.popup-chips { display: flex; gap: 6px; margin: 0 0 8px; flex-wrap: wrap; }
+.popup-chip {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 999px;
+  padding: 2px 9px; font-size: 11.5px; color: #16181d; white-space: nowrap;
+}
+.popup-chip.discount.tier-big { background: #ede9fe; border-color: #ddd6fe; color: #5b21b6; }
+.popup-chip.discount.tier-small { background: #f1f5f9; border-color: #e2e8f0; color: #475569; }
+.popup-details { border-top: 1px solid #eef1f5; margin: 8px 0 0; padding-top: 6px; }
+.popup-details summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center;
+  justify-content: space-between; font-size: 12px; font-weight: 600; color: #5b6472;
+  padding: 2px 0; user-select: none;
+}
+.popup-details summary::-webkit-details-marker { display: none; }
+.popup-details .details-chevron { transition: transform .15s ease; font-size: 11px; }
+.popup-details[open] .details-chevron { transform: rotate(180deg); }
+.popup-details-body { padding: 4px 0 2px; }
 .popup-nav .popup-share:hover { background: #e2e6eb; }
 .popup-nav .popup-share.copied {
   width: auto; padding: 0 10px; font-size: 11px; font-weight: 600; color: #166534; background: #f0fdf4;
@@ -190,9 +215,7 @@ html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font); }
 .popup-planb-row .planb-arrow { display: inline-block; font-size: 11px; color: #9aa2ad; line-height: 1; flex-shrink: 0; }
 .popup-planb-row .planb-dist { font-size: 11px; color: #9aa2ad; }
 .popup-planb-row .planb-chevron { color: #9aa2ad; font-size: 14px; line-height: 1; }
-.popup-updated { font-size: 12px; color: #16181d; margin: 2px 0 6px; }
-.popup-updated.stale { color: #9a3412; }
-.popup-official { margin-top: 8px; }
+.popup-official { margin-top: 4px; }
 .popup-official a { font-size: 12px; font-weight: 600; color: #2563eb; text-decoration: none; }
 .popup-official a:hover { text-decoration: underline; }
 .popup-stale-warning {

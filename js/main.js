@@ -1,25 +1,8 @@
-var API_URL = "https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/970/query" +
-  "?where=1%3D1" +
-  "&outFields=oid_hof,shem_chenyon,ktovet,lon,lat,status_chenyon,tr_status_chenyon,mispar_mekomot_bchenyon,taarif_yom,taarif_layla,hearot_taarif" +
-  "&returnGeometry=false" +
-  "&f=json";
-
-var REFRESH_INTERVAL_MS = 2 * 60 * 1000;
-
-// The GIS feed's per-lot status timestamp (tr_status_chenyon) can lag far
-// behind reality; past this age a lot's status is shown but visibly
-// demoted (faded pin + warning) instead of looking confidently live.
-var STALE_THRESHOLD_MS = 30 * 60 * 1000;
-
-var STATUS_INFO = {
-  "פנוי":  { hex: "#16a34a", label: "פנוי (Available)" },
-  "מעט":  { hex: "#d97706", label: "מעט מקומות (Few spaces)" },
-  "מלא":  { hex: "#dc2626", label: "מלא (Full)" },
-  "סגור": { hex: "#6b7280", label: "סגור (Closed)" },
-  "פעיל": { hex: "#64748b", label: "לא ידוע (Status unknown)" }
-};
-var DEFAULT_STATUS = STATUS_INFO["פעיל"];
-var STATUS_ORDER = ["פנוי", "מעט", "מלא", "פעיל"];
+import {
+  API_URL, REFRESH_INTERVAL_MS, STALE_THRESHOLD_MS,
+  STATUS_INFO, DEFAULT_STATUS, STATUS_ORDER,
+  VIEW_STORAGE_KEY, DEFAULT_VIEW, LABEL_MIN_ZOOM, PLANB_COUNT
+} from "./config.js";
 
 function normalizeLotName(name) {
   return String(name == null ? "" : name).replace(/[\s\-()]/g, "");
@@ -167,9 +150,6 @@ function statusInfo(rawStatus) {
 // tab when users hop to Waze and back, and the reload used to reset the
 // view to the city-wide default. Saved views far outside the Tel Aviv
 // area (or otherwise malformed) are ignored in favor of the default.
-var VIEW_STORAGE_KEY = "tlv-parking-map-view";
-var DEFAULT_VIEW = { lat: 32.08, lon: 34.77, zoom: 13 };
-
 function loadSavedView() {
   try {
     var v = JSON.parse(localStorage.getItem(VIEW_STORAGE_KEY));
@@ -204,10 +184,6 @@ map.on("moveend", function () {
   } catch (e) { /* storage may be unavailable (private mode); view just won't persist */ }
 });
 
-// Lot-name labels only render once zoomed in enough that pins have spread
-// out -- with ~90 lots, showing them at the full-city zoom would be an
-// unreadable overlapping mess.
-var LABEL_MIN_ZOOM = 15;
 var mapEl = document.getElementById("map");
 function updateLabelVisibility() {
   mapEl.classList.toggle("show-labels", map.getZoom() >= LABEL_MIN_ZOOM);
@@ -649,7 +625,6 @@ function formatDistance(m) {
 // feed got wrong already has somewhere to go next. Prefers lots the feed
 // says have room (פנוי/מעט); pads with status-unknown lots only when
 // fewer than PLANB_COUNT of those exist nearby.
-var PLANB_COUNT = 3;
 function isLotStale(lot, nowMs) {
   return !lot.updatedAt || (nowMs - lot.updatedAt) > STALE_THRESHOLD_MS;
 }

@@ -91,6 +91,34 @@ html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font); }
   font-size: 12px; color: #5b6472; direction: rtl; text-align: right;
   margin: 10px 0 2px; line-height: 1.5;
 }
+.search-box { position: relative; direction: rtl; }
+.search-box input {
+  width: 230px; max-width: calc(100vw - 32px);
+  border: 1px solid rgba(15,23,42,.08); border-radius: 999px;
+  background: rgba(255,255,255,.9); backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(16,24,40,.12);
+  padding: 8px 14px; font-family: var(--font); color: #16181d;
+  /* 16px minimum: anything smaller makes iOS Safari zoom in on focus */
+  font-size: 16px;
+  outline: none;
+}
+.search-box input::placeholder { color: #9aa2ad; font-size: 13px; }
+.search-box input:focus { border-color: #bfdbfe; }
+.search-results {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  width: 260px; max-width: calc(100vw - 32px);
+  background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(16,24,40,.14); overflow: hidden;
+}
+.search-result { padding: 9px 12px; cursor: pointer; font-size: 13px; color: #16181d; }
+.search-result:hover { background: #f1f5f9; }
+.search-result .search-result-area { font-size: 11.5px; color: #9aa2ad; }
+.search-note { padding: 9px 12px; font-size: 12px; color: #9aa2ad; }
+.search-location-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #7c3aed; border: 2px solid #fff; box-shadow: 0 0 0 2px #7c3aed66;
+}
+
 .locate-btn {
   background: #fff; border: 1px solid rgba(15,23,42,.08); border-radius: 50%;
   box-shadow: 0 8px 24px rgba(16,24,40,.12); width: 44px; height: 44px;
@@ -159,6 +187,7 @@ html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font); }
 .popup-planb-row.stale .dot { filter: grayscale(.65); opacity: .55; }
 .popup-planb-row .planb-stale { font-size: 10px; line-height: 1; }
 .popup-planb-row .planb-name { flex: 1; color: #16181d; }
+.popup-planb-row .planb-arrow { display: inline-block; font-size: 11px; color: #9aa2ad; line-height: 1; flex-shrink: 0; }
 .popup-planb-row .planb-dist { font-size: 11px; color: #9aa2ad; }
 .popup-planb-row .planb-chevron { color: #9aa2ad; font-size: 14px; line-height: 1; }
 .popup-updated { font-size: 12px; color: #16181d; margin: 2px 0 6px; }

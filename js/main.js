@@ -9,6 +9,7 @@ import {
   initFreshnessPill, beginFetch, endFetch, recordFetchSuccess, recordFetchError
 } from "./freshness.js";
 import { initMarkers, renderLots } from "./markers.js";
+import { initSearch } from "./search.js";
 
 // #lot=<oid> deep link: a shared link should land on the shared lot, so it
 // overrides the saved-view restore. Consumed once, on the first render
@@ -25,6 +26,7 @@ initBrand(map);
 initFreshnessPill(map, () => loadData(true));
 initBottomControls(map);
 initMarkers(map, pendingDeepLinkLotId);
+initSearch(map);
 
 // isManual: a tap on the freshness pill (as opposed to the auto-poll);
 // it makes the pill flash a visible confirmation.

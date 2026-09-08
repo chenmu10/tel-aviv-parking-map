@@ -359,11 +359,19 @@
 
   L.control.zoom({ position: "topright" }).addTo(map);
 
-  // OpenFreeMap's Positron vector style (keyless) via MapLibre GL — closest
-  // free match to the muted CARTO Voyager/Positron raster look this map had
-  // before CARTO put its basemap CDN behind an API key.
+  // MapLibre GL renders Hebrew/Arabic labels with reversed letter order
+  // unless its RTL text plugin is loaded (runs in a worker; lazy = only
+  // fetched once an RTL label is actually on screen).
+  maplibregl.setRTLTextPlugin(
+    "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js",
+    true
+  );
+
+  // OpenFreeMap's Bright vector style (keyless) via MapLibre GL — a
+  // colorful basemap replacing the CARTO raster tiles this map had before
+  // CARTO put its basemap CDN behind an API key.
   L.maplibreGL({
-    style: "https://tiles.openfreemap.org/styles/positron",
+    style: "https://tiles.openfreemap.org/styles/bright",
     attribution: '<a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
 

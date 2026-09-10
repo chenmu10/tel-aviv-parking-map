@@ -176,12 +176,41 @@ html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font); }
   width: 44px; height: 44px;
 }
 .popup-nav .popup-nav-btn img { width: 40px; height: 40px; border-radius: 9px; display: block; }
-.popup-nav .popup-share {
+.popup-nav .popup-share, .popup-nav .popup-report {
   width: 40px; height: 40px; border-radius: 9px; border: none; cursor: pointer;
   background: #eef1f5; color: #2563eb; display: inline-flex; flex-shrink: 0;
   align-items: center; justify-content: center; padding: 0; font-family: var(--font);
 }
-.popup-nav .popup-share:hover { background: #e2e6eb; }
+.popup-nav .popup-share:hover, .popup-nav .popup-report:hover { background: #e2e6eb; }
+.popup-nav .popup-report { color: #9a3412; background: #fff7ed; }
+.popup-nav .popup-report:hover { background: #ffedd5; }
+
+.popup-report-panel {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 10px; margin: 0 0 8px;
+}
+.popup-report-panel[hidden] { display: none; }
+.report-title { font-size: 12.5px; font-weight: 600; color: #16181d; margin-bottom: 6px; }
+.report-categories { display: flex; flex-direction: column; gap: 5px; }
+.report-category {
+  text-align: right; font-family: var(--font); font-size: 12.5px; color: #16181d;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 7px; padding: 7px 9px; cursor: pointer;
+}
+.report-category:hover { background: #f1f5f9; }
+.report-category.selected { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+.report-actions { display: flex; gap: 6px; margin-top: 8px; }
+.report-actions .report-gmail, .report-actions .report-copy {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center;
+  min-height: 34px; padding: 6px 8px; border-radius: 8px; font-family: var(--font);
+  font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center;
+}
+.report-actions .report-gmail { background: #2563eb; color: #fff; border: 1px solid #2563eb; }
+.report-actions .report-gmail:hover { background: #1d4ed8; }
+.report-actions .report-copy { background: #fff; color: #16181d; border: 1px solid #cbd5e1; }
+.report-actions .report-copy:hover { background: #f1f5f9; }
+.report-actions .report-copy.done { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
+.report-ours { display: block; margin-top: 8px; font-size: 11px; color: #64748b; text-decoration: none; }
+.report-ours:hover { text-decoration: underline; }
 .popup-chips { display: flex; gap: 6px; margin: 0 0 8px; flex-wrap: wrap; }
 .popup-chip {
   background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 999px;

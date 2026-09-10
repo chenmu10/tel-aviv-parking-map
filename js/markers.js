@@ -14,6 +14,10 @@ import {
   normalizeLotName, statusInfo, formatUpdatedAt, israelNowMs, formatAgo,
   isLotStale, escapeHtml, distanceMeters, formatDistance, bearingDegrees
 } from "./format.js";
+import {
+  REPORT_CATEGORIES, buildReport, gmailComposeUrl, reportClipboardText,
+  contactFormUrl, ourIssueUrl
+} from "./report.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -148,6 +152,132 @@ function createShareIcon() {
 // "copied" flash, so the two can't drift apart.
 const SHARE_SVG = createShareIcon().outerHTML;
 
+function createFlagIcon() {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("width", "20");
+  svg.setAttribute("height", "20");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  const pole = document.createElementNS(SVG_NS, "line");
+  pole.setAttribute("x1", "5"); pole.setAttribute("y1", "21");
+  pole.setAttribute("x2", "5"); pole.setAttribute("y2", "4");
+  svg.appendChild(pole);
+  const flag = document.createElementNS(SVG_NS, "path");
+  flag.setAttribute("d", "M5 4h11l-1.5 3.5L16 11H5");
+  svg.appendChild(flag);
+  return svg;
+}
+const FLAG_SVG = createFlagIcon().outerHTML;
+
+// --- "Wrong data" report panel ------------------------------------------------
+
+// ahuzot.co.il's own lot number, matched by normalized name (see
+// AHUZOT_LINKS); undefined for the handful of lots we can't match.
+function ahuzotIdFor(lot) {
+  const normalizedName = normalizeLotName(lot.name);
+  return Object.prototype.hasOwnProperty.call(AHUZOT_LINKS, normalizedName)
+    ? AHUZOT_LINKS[normalizedName]
+    : undefined;
+}
+
+function lotById(lotId) {
+  return lastVisibleLots.find((lot) => String(lot.id) === String(lotId)) || null;
+}
+
+function reportFor(lot, categoryKey) {
+  const ahuzotId = ahuzotIdFor(lot);
+  return buildReport(lot, categoryKey, {
+    ahuzotId,
+    officialLink: ahuzotId ? AHUZOT_LINK_BASE + ahuzotId : undefined,
+    deepLink: location.origin + location.pathname + "#lot=" + lot.id
+  });
+}
+
+// The panel is rendered collapsed inside every popup and toggled by the
+// flag button. The Gmail link is (re)built on open and on category change
+// so the report's timestamp is the moment of reporting, not of rendering.
+function reportPanelHtml(lot) {
+  const categories = REPORT_CATEGORIES.map((c, i) =>
+    `<button type="button" class="report-category${i === 0 ? " selected" : ""}" data-category="${c.key}">${escapeHtml(c.label)}</button>`
+  ).join("");
+  return `<div class="popup-report-panel" hidden data-lot-id="${escapeHtml(lot.id)}">` +
+    `<div class="report-title">מה לא נכון בחניון ${escapeHtml(lot.name || "")}?</div>` +
+    `<div class="report-categories">${categories}</div>` +
+    '<div class="report-actions">' +
+      '<a class="report-gmail" href="#" target="_blank" rel="noopener noreferrer">שליחה ב-Gmail</a>' +
+      '<button type="button" class="report-copy">העתקה + פתיחת הטופס</button>' +
+    "</div>" +
+    `<a class="report-ours" href="${escapeHtml(ourIssueUrl(lot))}" target="_blank" rel="noopener noreferrer">מספר המקומות או ההנחה שגויים? זה נתון שלנו — דווחו לנו ↗</a>` +
+    "</div>";
+}
+
+function refreshGmailLink(panel) {
+  const lot = lotById(panel.getAttribute("data-lot-id"));
+  const selected = panel.querySelector(".report-category.selected");
+  const link = panel.querySelector(".report-gmail");
+  if (!lot || !selected || !link) return;
+  link.href = gmailComposeUrl(reportFor(lot, selected.getAttribute("data-category")));
+}
+
+// Re-runs the open popup's autopan after its content changed size (the
+// details expander or the report panel opening). _adjustPan is private but
+// stable in the pinned leaflet@1.9.4; the public update() is unusable here
+// -- it re-sets the popup's HTML, which would snap the expander shut.
+function adjustOpenPopupPan() {
+  const marker = openPopupLotId != null && markersByLotId[openPopupLotId];
+  const popup = marker && marker.getPopup();
+  if (popup && popup.isOpen() && typeof popup._adjustPan === "function") popup._adjustPan();
+}
+
+function onReportClick(e) {
+  const target = e.target.closest && e.target.closest(".popup-report, .report-category, .report-copy");
+  if (!target) return;
+  const content = target.closest(".leaflet-popup-content");
+  const panel = content && content.querySelector(".popup-report-panel");
+  if (!panel) return;
+
+  if (target.classList.contains("popup-report")) {
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) refreshGmailLink(panel);
+    adjustOpenPopupPan();
+    return;
+  }
+
+  if (target.classList.contains("report-category")) {
+    panel.querySelectorAll(".report-category").forEach((b) => b.classList.remove("selected"));
+    target.classList.add("selected");
+    refreshGmailLink(panel);
+    return;
+  }
+
+  // Copy + form: their form can't be prefilled, so the report goes to the
+  // clipboard for pasting. The form tab is opened synchronously, inside the
+  // click, before the clipboard promise -- popup blockers reject windows
+  // opened from a later microtask.
+  const lot = lotById(panel.getAttribute("data-lot-id"));
+  const selected = panel.querySelector(".report-category.selected");
+  if (!lot || !selected) return;
+  const text = reportClipboardText(reportFor(lot, selected.getAttribute("data-category")));
+  window.open(contactFormUrl, "_blank", "noopener");
+  const flash = (label) => {
+    const original = target.textContent;
+    target.textContent = label;
+    target.classList.add("done");
+    setTimeout(() => { target.textContent = original; target.classList.remove("done"); }, 2600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => flash("הועתק ✓ הדביקו בטופס"))
+      .catch(() => window.prompt("העתיקו את הדיווח (Copy the report):", text));
+  } else {
+    window.prompt("העתיקו את הדיווח (Copy the report):", text);
+  }
+}
+
 // navigator.share opens the native sheet (the mobile case this is for);
 // desktop browsers without it copy the link and flash confirmation.
 function onShareClick(e) {
@@ -250,7 +380,9 @@ function popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacit
         '<img src="google-maps-icon.png" alt="" width="40" height="40" />' +
       "</a>" +
       `<button type="button" class="popup-share" data-lot-id="${escapeHtml(lot.id)}" data-lot-name="${escapeHtml(lot.name || "חניון")}" data-latlon="${escapeHtml(lot.lat + "," + lot.lon)}" title="שתף קישור לחניון (Share)" aria-label="שתף (Share)">${SHARE_SVG}</button>` +
+      `<button type="button" class="popup-report" title="דיווח על נתון שגוי לאחוזות החוף (Report wrong data)" aria-label="דיווח על נתון שגוי (Report wrong data)">${FLAG_SVG}</button>` +
     "</div>" +
+    reportPanelHtml(lot) +
     (chips ? `<div class="popup-chips">${chips}</div>` : "") +
     '<details class="popup-details">' +
       '<summary>פרטים נוספים ומחירון (Details) <span class="details-chevron">▾</span></summary>' +
@@ -280,10 +412,7 @@ export function renderLots(lots) {
     const info = statusInfo(lot.status);
     const isStale = isLotStale(lot, nowMs);
 
-    const normalizedName = normalizeLotName(lot.name);
-    const ahuzotId = Object.prototype.hasOwnProperty.call(AHUZOT_LINKS, normalizedName)
-      ? AHUZOT_LINKS[normalizedName]
-      : undefined;
+    const ahuzotId = ahuzotIdFor(lot);
     const officialLink = ahuzotId ? AHUZOT_LINK_BASE + ahuzotId : undefined;
 
     // The GIS "tariff notes" field (hearot_taarif) is free text the
@@ -392,17 +521,12 @@ export function initMarkers(leafletMap, deepLinkLotId) {
 
   map.getContainer().addEventListener("click", onPlanBClick);
   map.getContainer().addEventListener("click", onShareClick);
+  map.getContainer().addEventListener("click", onReportClick);
 
   // Expanding the details section grows an already-open popup, but Leaflet
   // only auto-pans on open -- without this the grown popup's top half ends
   // up under the map controls. 'toggle' doesn't bubble, so capture it.
-  // _adjustPan is private but stable in the pinned leaflet@1.9.4; the
-  // public update() is unusable here -- it re-sets the popup's HTML, which
-  // would snap the <details> the user just opened back shut.
   map.getContainer().addEventListener("toggle", (e) => {
-    if (!e.target.closest || !e.target.closest(".leaflet-popup")) return;
-    const marker = openPopupLotId != null && markersByLotId[openPopupLotId];
-    const popup = marker && marker.getPopup();
-    if (popup && popup.isOpen() && typeof popup._adjustPan === "function") popup._adjustPan();
+    if (e.target.closest && e.target.closest(".leaflet-popup")) adjustOpenPopupPan();
   }, true);
 }

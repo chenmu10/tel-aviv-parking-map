@@ -57,3 +57,13 @@ export const PLANB_COUNT = 3;
 // smaller ones get the muted style. Used by both the pin badge and the
 // popup chip.
 export const DISCOUNT_BIG_TIER_PCT = 60;
+
+// Where "this data is wrong" reports go. Ahuzot HaHof (the lot operator and
+// the source behind the GIS feed) publishes these on ahuzot.co.il/Contact.
+// Their contact form is an ASP.NET POST page that can't be prefilled from a
+// link, so the form path copies the report text for pasting.
+export const AHUZOT_CONTACT_EMAIL = "ahuzot@ahuzot.co.il";
+export const AHUZOT_CONTACT_FORM_URL = "https://www.ahuzot.co.il/Contact/";
+// Capacity/discount figures are OUR hand-maintained snapshot, not theirs --
+// complaints about those route to this project's issue tracker instead.
+export const PROJECT_ISSUES_URL = "https://github.com/chenmu10/tel-aviv-parking-map/issues/new";

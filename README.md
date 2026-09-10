@@ -29,6 +29,10 @@ Live: https://chenmu10.github.io/tel-aviv-parking-map/
   direction arrow pointing the real-world way to it; tap to jump to them
 - Address search: type an address, pick a suggestion, and the map zooms there
   and opens the nearest lot with room (within 3 km)
+- Report wrong data to the operator: a flag button in each popup opens a
+  "what's wrong?" chooser and prepares a Hebrew report (lot number, GIS oid,
+  status shown, both timestamps) — sent via a prefilled Gmail compose link, or
+  copied to the clipboard for pasting into ahuzot.co.il's contact form
 - One-tap navigation to a lot via Waze or Google Maps (by exact coordinates)
 - Share button per lot (native share sheet / copy link) with `#lot=<id>` deep
   links that open the shared lot's popup directly
@@ -70,6 +74,7 @@ js/controls.js      banner, brand/info modal, legend, locate button
 js/freshness.js     freshness pill + fetch-lifecycle state
 js/markers.js       pins, popups, Plan B alternatives, share, #lot= deep links
 js/search.js        address search box (Photon geocoding, nearest-lot handoff)
+js/report.js        wrong-data report text + Gmail/clipboard helpers
 ```
 
 ## Run locally

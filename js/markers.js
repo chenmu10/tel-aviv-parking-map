@@ -159,10 +159,15 @@ function onShareClick(e) {
   // targets (e.g. the Tesla app, which sends destinations to the car and
   // can't parse our deep link) get usable coordinates; human recipients
   // still get the map deep link in the url field.
+  // The link goes FIRST: such targets geocode the first place-like thing
+  // they find in the text, and a leading lot name like "כרמל 1" (generic)
+  // or "בית האצ\"ל" (gershayim breaks address parsing) resolved to the city
+  // center instead of the lot, while unique names like "ליבר" happened to
+  // work. Coordinates first, name on its own line after.
   const navUrl = "https://www.google.com/maps/dir/?api=1&destination=" +
     encodeURIComponent(btn.getAttribute("data-latlon"));
   if (navigator.share) {
-    navigator.share({ title: "חניון " + name, text: "חניון " + name + " — ניווט: " + navUrl, url: url }).catch(() => {});
+    navigator.share({ title: "חניון " + name, text: navUrl + "\nחניון " + name, url: url }).catch(() => {});
   } else if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url).then(() => {
       // Compact ✓ flash: the button keeps its fixed size so the flash

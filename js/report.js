@@ -72,12 +72,26 @@ export function buildReport(lot, categoryKey, { ahuzotId, officialLink, deepLink
   return { subject, body };
 }
 
+// iPadOS Safari reports a Mac user agent; the touch-point check catches it.
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+// On iOS, mail.google.com links open in Safari (Gmail for iOS registers no
+// universal link for compose), so the Gmail app's own URL scheme is used
+// there -- it opens the app straight into a prefilled draft. Android and
+// desktop handle the web compose URL (Android hands it to the Gmail app).
 export function gmailComposeUrl({ subject, body }) {
-  return "https://mail.google.com/mail/?view=cm&fs=1" +
-    `&to=${encodeURIComponent(AHUZOT_CONTACT_EMAIL)}` +
-    `&su=${encodeURIComponent(subject)}` +
-    `&body=${encodeURIComponent(body)}`;
+  const to = encodeURIComponent(AHUZOT_CONTACT_EMAIL);
+  const su = encodeURIComponent(subject);
+  const bo = encodeURIComponent(body);
+  return IS_IOS
+    ? `googlegmail:///co?to=${to}&subject=${su}&body=${bo}`
+    : `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}&body=${bo}`;
 }
+
+// A custom-scheme link must open in the current tab: target=_blank on iOS
+// leaves a blank Safari tab behind when the app takes over.
+export const gmailLinkTarget = IS_IOS ? "_self" : "_blank";
 
 // What lands on the clipboard for pasting into the contact form.
 export function reportClipboardText({ subject, body }) {

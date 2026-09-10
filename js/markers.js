@@ -15,7 +15,7 @@ import {
   isLotStale, escapeHtml, distanceMeters, formatDistance, bearingDegrees
 } from "./format.js";
 import {
-  REPORT_CATEGORIES, buildReport, gmailComposeUrl, reportClipboardText,
+  REPORT_CATEGORIES, buildReport, gmailComposeUrl, gmailLinkTarget, reportClipboardText,
   contactFormUrl, contactEmail
 } from "./report.js";
 
@@ -221,7 +221,7 @@ function reportPanelHtml(lot) {
     `<div class="report-title">מה לא נכון בחניון ${escapeHtml(lot.name || "")}?</div>` +
     `<div class="report-categories">${categories}</div>` +
     '<div class="report-actions">' +
-      '<a class="report-gmail" href="#" target="_blank" rel="noopener noreferrer">פתיחת טיוטה ב-Gmail</a>' +
+      `<a class="report-gmail" href="#" target="${gmailLinkTarget}" rel="noopener noreferrer">פתיחת טיוטה ב-Gmail</a>` +
       '<button type="button" class="report-copy">העתקה + טופס באתר</button>' +
     "</div>" +
     // Calms the "will this send something in my name?" hesitation: the

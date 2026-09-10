@@ -31,8 +31,9 @@ Live: https://chenmu10.github.io/tel-aviv-parking-map/
   and opens the nearest lot with room (within 3 km)
 - Report wrong data to the operator: a flag button in each popup opens a
   "what's wrong?" chooser and prepares a Hebrew report (lot number, GIS oid,
-  status shown, both timestamps) — sent via a prefilled Gmail compose link, or
-  copied to the clipboard for pasting into ahuzot.co.il's contact form
+  status shown, both timestamps). Nothing is sent automatically — it opens as
+  a Gmail draft to review, or is copied to the clipboard for pasting into
+  ahuzot.co.il's contact form
 - One-tap navigation to a lot via Waze or Google Maps (by exact coordinates)
 - Share button per lot (native share sheet / copy link) with `#lot=<id>` deep
   links that open the shared lot's popup directly

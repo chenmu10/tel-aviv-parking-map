@@ -16,7 +16,7 @@ import {
 } from "./format.js";
 import {
   REPORT_CATEGORIES, buildReport, gmailComposeUrl, reportClipboardText,
-  contactFormUrl, ourIssueUrl
+  contactFormUrl, contactEmail
 } from "./report.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -221,10 +221,12 @@ function reportPanelHtml(lot) {
     `<div class="report-title">מה לא נכון בחניון ${escapeHtml(lot.name || "")}?</div>` +
     `<div class="report-categories">${categories}</div>` +
     '<div class="report-actions">' +
-      '<a class="report-gmail" href="#" target="_blank" rel="noopener noreferrer">שליחה ב-Gmail</a>' +
-      '<button type="button" class="report-copy">העתקה + פתיחת הטופס</button>' +
+      '<a class="report-gmail" href="#" target="_blank" rel="noopener noreferrer">פתיחת טיוטה ב-Gmail</a>' +
+      '<button type="button" class="report-copy">העתקה + טופס באתר</button>' +
     "</div>" +
-    `<a class="report-ours" href="${escapeHtml(ourIssueUrl(lot))}" target="_blank" rel="noopener noreferrer">מספר המקומות או ההנחה שגויים? זה נתון שלנו — דווחו לנו ↗</a>` +
+    // Calms the "will this send something in my name?" hesitation: the
+    // buttons only prepare a draft, and the recipient is named up front.
+    `<div class="report-note">שום דבר לא נשלח אוטומטית. תיפתח טיוטה ממולאת — קוראים, מוסיפים מה ראיתם, ושולחים אל <span class="report-email">${escapeHtml(contactEmail)}</span> רק אם תרצו.</div>` +
     "</div>";
 }
 

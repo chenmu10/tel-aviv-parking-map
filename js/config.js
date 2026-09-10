@@ -64,6 +64,3 @@ export const DISCOUNT_BIG_TIER_PCT = 60;
 // link, so the form path copies the report text for pasting.
 export const AHUZOT_CONTACT_EMAIL = "ahuzot@ahuzot.co.il";
 export const AHUZOT_CONTACT_FORM_URL = "https://www.ahuzot.co.il/Contact/";
-// Capacity/discount figures are OUR hand-maintained snapshot, not theirs --
-// complaints about those route to this project's issue tracker instead.
-export const PROJECT_ISSUES_URL = "https://github.com/chenmu10/tel-aviv-parking-map/issues/new";

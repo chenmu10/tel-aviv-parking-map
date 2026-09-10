@@ -7,7 +7,7 @@
 // desktops is rarely the mail the user actually reads. The copy + form path
 // covers everyone without Gmail.
 
-import { AHUZOT_CONTACT_EMAIL, AHUZOT_CONTACT_FORM_URL, PROJECT_ISSUES_URL } from "./config.js";
+import { AHUZOT_CONTACT_EMAIL, AHUZOT_CONTACT_FORM_URL } from "./config.js";
 import { formatUpdatedAt, israelNowMs, statusInfo } from "./format.js";
 
 // What the user says is wrong. Each category gives the subject noun and the
@@ -85,10 +85,4 @@ export function reportClipboardText({ subject, body }) {
 }
 
 export const contactFormUrl = AHUZOT_CONTACT_FORM_URL;
-
-// Capacity/discount are our snapshot, not the provider's data.
-export function ourIssueUrl(lot) {
-  return PROJECT_ISSUES_URL +
-    `?title=${encodeURIComponent(`נתון שגוי בחניון ${lot.name || lot.id} (מקומות / הנחה)`)}` +
-    `&body=${encodeURIComponent(`חניון: ${lot.name || ""} (oid ${lot.id})\nמה שגוי: `)}`;
-}
+export const contactEmail = AHUZOT_CONTACT_EMAIL;

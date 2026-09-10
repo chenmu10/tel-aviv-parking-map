@@ -47,17 +47,30 @@ let lastVisibleLots = [];
 // phones the brand + pill + search stack wraps and grows well past the
 // 90px the old constant assumed, which parked popups underneath the pill.
 // Top clearance takes the taller of the two top corners (the brand stack
-// sits top-right for RTL, zoom top-left).
+// sits top-right for RTL, zoom top-left). Hidden controls (phone focus
+// mode, see CONTROL_HIDDEN_CLASS) measure 0, so the padding collapses to
+// the bare margin and the popup can use the whole screen.
+const CONTROL_GAP_PX = 12;
 function popupAutopanPadding() {
-  const topLeft = document.querySelector(".leaflet-top.leaflet-left");
-  const topRight = document.querySelector(".leaflet-top.leaflet-right");
-  const bottomRight = document.querySelector(".leaflet-bottom.leaflet-right");
-  const topHeight = Math.max(topLeft ? topLeft.offsetHeight : 0, topRight ? topRight.offsetHeight : 0, 80);
+  const size = (selector) => {
+    const el = document.querySelector(selector);
+    return el ? { w: el.offsetWidth, h: el.offsetHeight } : { w: 0, h: 0 };
+  };
+  const topLeft = size(".leaflet-top.leaflet-left");
+  const topRight = size(".leaflet-top.leaflet-right");
+  const bottomRight = size(".leaflet-bottom.leaflet-right");
   return {
-    autoPanPaddingTopLeft: L.point(16, topHeight + 12),
-    autoPanPaddingBottomRight: L.point(190, Math.max(160, (bottomRight ? bottomRight.offsetHeight : 150) + 12))
+    autoPanPaddingTopLeft: L.point(CONTROL_GAP_PX + 4, Math.max(topLeft.h, topRight.h) + CONTROL_GAP_PX),
+    autoPanPaddingBottomRight: L.point(bottomRight.w + CONTROL_GAP_PX, bottomRight.h + CONTROL_GAP_PX)
   };
 }
+
+// Phone focus mode: while a popup is open, the map container carries this
+// class and CSS hides the browse-mode controls (title, pill, search, legend,
+// locate) on narrow screens. Chrome took ~47% of a 375x667 screen, leaving
+// less room than a popup with its details open -- so popups overlapped the
+// pills no matter how autopan tried. Desktop has room and is unaffected.
+const POPUP_OPEN_CLASS = "popup-open";
 
 // --- Plan B: nearby alternatives ---------------------------------------------
 
@@ -509,6 +522,9 @@ export function initMarkers(leafletMap, deepLinkLotId) {
 
   map.on("popupopen", (e) => {
     if (e.popup._source && e.popup._source._lotId != null) openPopupLotId = e.popup._source._lotId;
+    // Hide the chrome BEFORE measuring, so focus mode's zero-height corners
+    // are what the padding sees.
+    map.getContainer().classList.add(POPUP_OPEN_CLASS);
     // Re-measure control clearance at open time and re-pan: the padding
     // baked in at render time can be minutes old, and the pill grows on
     // error/success flashes (which don't re-render) and on rotation.
@@ -517,6 +533,9 @@ export function initMarkers(leafletMap, deepLinkLotId) {
   });
   map.on("popupclose", (e) => {
     if (e.popup._source && e.popup._source._lotId === openPopupLotId) openPopupLotId = null;
+    // A re-render closes and reopens the popup synchronously, so the class
+    // flips off and on within one frame -- no visible flicker.
+    map.getContainer().classList.remove(POPUP_OPEN_CLASS);
   });
 
   map.getContainer().addEventListener("click", onPlanBClick);

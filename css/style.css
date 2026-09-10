@@ -249,3 +249,14 @@ html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font); }
   border-radius: 8px; padding: 5px 8px; font-size: 11.5px; font-weight: 500;
   margin: 2px 0 6px;
 }
+
+/* --- Phones ------------------------------------------------------------- */
+@media (max-width: 600px) {
+  /* Pinch zoom exists; the buttons only cost map space. */
+  .leaflet-control-zoom { display: none; }
+  .brand { font-size: 13px; padding: 7px 10px; }
+  .brand .info-icon { width: 26px; height: 26px; font-size: 12px; }
+  /* Focus mode: reading one lot is a different task from browsing the map.
+     While a popup is open the browse chrome steps aside (attribution stays). */
+  .leaflet-container.popup-open .leaflet-control:not(.leaflet-control-attribution) { display: none; }
+}

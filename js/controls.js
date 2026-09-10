@@ -76,6 +76,9 @@ const LegendControl = L.Control.extend({
   options: { position: "bottomright" },
   onAdd: function () {
     const div = L.DomUtil.create("div", "legend");
+    // Four colors are learned in seconds; on phones the expanded legend ate
+    // a quarter of the screen, so it starts collapsed there (tap to expand).
+    if (window.matchMedia("(max-width: 600px)").matches) div.classList.add("collapsed");
 
     const toggle = document.createElement("div");
     toggle.className = "legend-toggle";

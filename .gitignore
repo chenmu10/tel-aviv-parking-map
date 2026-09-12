@@ -3,3 +3,5 @@
 *.csv
 TODO.local.md
 .claude/launch.json
+.vercel
+.env*

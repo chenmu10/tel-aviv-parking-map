@@ -6,7 +6,7 @@ Ahuzot HaHof coastal parking lots on a map, color-coded by status
 in parentheses for the mixed Hebrew/English audience it's built for.
 No build step: plain HTML, CSS, and native ES modules, served as-is.
 
-Live: https://chenmu10.github.io/tel-aviv-parking-map/
+Live: https://tlv-parking.vercel.app/ (also mirrored at https://chenmu10.github.io/tel-aviv-parking-map/)
 
 ## Screenshots
 

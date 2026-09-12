@@ -1,0 +1,7 @@
+# Local-only files that must not be uploaded by `vercel deploy`.
+.api-cache.json
+*.csv
+TODO.local.md
+.claude
+.DS_Store
+docs

@@ -10,6 +10,7 @@ import {
 } from "./freshness.js";
 import { initMarkers, renderLots } from "./markers.js";
 import { initSearch } from "./search.js";
+import { track } from "./analytics.js";
 
 // #lot=<oid> deep link: a shared link should land on the shared lot, so it
 // overrides the saved-view restore. Consumed once, on the first render
@@ -32,6 +33,7 @@ initSearch(map);
 // it makes the pill flash a visible confirmation.
 function loadData(isManual) {
   if (!beginFetch()) return;
+  if (isManual) track("refresh");
   fetchLots()
     .then((lots) => {
       renderLots(lots);

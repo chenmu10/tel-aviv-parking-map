@@ -18,6 +18,7 @@ import {
   REPORT_CATEGORIES, buildReport, gmailComposeUrl, gmailLinkTarget,
   contactFormUrl, contactEmail
 } from "./report.js";
+import { track } from "./analytics.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -197,6 +198,11 @@ function ahuzotIdFor(lot) {
     : undefined;
 }
 
+// How a lot is named in usage events (public feed data).
+function lotLabel(lot) {
+  return lot ? (lot.name || String(lot.id)) : "";
+}
+
 function lotById(lotId) {
   return lastVisibleLots.find((lot) => String(lot.id) === String(lotId)) || null;
 }
@@ -249,16 +255,30 @@ function adjustOpenPopupPan() {
 }
 
 function onReportClick(e) {
-  const target = e.target.closest && e.target.closest(".popup-report, .report-category");
+  const target = e.target.closest && e.target.closest(".popup-report, .report-category, .report-gmail, .report-form");
   if (!target) return;
   const content = target.closest(".leaflet-popup-content");
   const panel = content && content.querySelector(".popup-report-panel");
   if (!panel) return;
+  const lot = lotById(panel.getAttribute("data-lot-id"));
 
   if (target.classList.contains("popup-report")) {
     panel.hidden = !panel.hidden;
-    if (!panel.hidden) refreshGmailLink(panel);
+    if (!panel.hidden) {
+      refreshGmailLink(panel);
+      track("report_open", { lot: lotLabel(lot) });
+    }
     adjustOpenPopupPan();
+    return;
+  }
+
+  // The two outgoing links: record which path was taken, let the link work.
+  if (target.classList.contains("report-gmail") || target.classList.contains("report-form")) {
+    const selected = panel.querySelector(".report-category.selected");
+    track(target.classList.contains("report-gmail") ? "report_gmail" : "report_form", {
+      lot: lotLabel(lot),
+      category: selected ? selected.getAttribute("data-category") : ""
+    });
     return;
   }
 
@@ -286,6 +306,7 @@ function onShareClick(e) {
   // work. Coordinates first, name on its own line after.
   const navUrl = "https://www.google.com/maps/dir/?api=1&destination=" +
     encodeURIComponent(btn.getAttribute("data-latlon"));
+  track("share", { lot: name, method: navigator.share ? "sheet" : "copy" });
   if (navigator.share) {
     navigator.share({ title: "חניון " + name, text: navUrl + "\nחניון " + name, url: url }).catch(() => {});
   } else if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -313,7 +334,19 @@ function onPlanBClick(e) {
   const row = e.target.closest && e.target.closest(".popup-planb-row");
   if (!row) return;
   const marker = markersByLotId[row.getAttribute("data-lot-id")];
-  if (marker) marker.openPopup();
+  if (!marker) return;
+  const fromLot = openPopupLotId != null ? lotById(openPopupLotId) : null;
+  track("nearby_lot", { from: lotLabel(fromLot), to: lotLabel(lotById(row.getAttribute("data-lot-id"))) });
+  marker.openPopup();
+}
+
+// Waze / Google buttons: record which app people navigate with (and the
+// status the lot showed at the time), then let the link open normally.
+function onNavClick(e) {
+  const link = e.target.closest && e.target.closest(".popup-nav-btn");
+  if (!link) return;
+  const lot = lotById(link.getAttribute("data-lot-id"));
+  track("nav", { app: link.getAttribute("data-nav"), lot: lotLabel(lot), status: lot ? statusInfo(lot.status).short : "" });
 }
 
 // --- Rendering ----------------------------------------------------------------
@@ -363,10 +396,10 @@ function popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacit
         " — ייתכן שאינו מדויק (Status may be outdated)</div>"
       : "") +
     '<div class="popup-nav">' +
-      `<a class="popup-nav-btn" href="https://waze.com/ul?ll=${destinationParam}&navigate=yes" target="_blank" rel="noopener noreferrer" aria-label="Waze" title="Waze">` +
+      `<a class="popup-nav-btn" data-nav="waze" data-lot-id="${escapeHtml(lot.id)}" href="https://waze.com/ul?ll=${destinationParam}&navigate=yes" target="_blank" rel="noopener noreferrer" aria-label="Waze" title="Waze">` +
         '<img src="waze-icon.png" alt="" width="40" height="40" />' +
       "</a>" +
-      `<a class="popup-nav-btn" href="https://www.google.com/maps/dir/?api=1&destination=${destinationParam}" target="_blank" rel="noopener noreferrer" aria-label="Google Maps" title="Google Maps">` +
+      `<a class="popup-nav-btn" data-nav="maps" data-lot-id="${escapeHtml(lot.id)}" href="https://www.google.com/maps/dir/?api=1&destination=${destinationParam}" target="_blank" rel="noopener noreferrer" aria-label="Google Maps" title="Google Maps">` +
         '<img src="google-maps-icon.png" alt="" width="40" height="40" />' +
       "</a>" +
       `<button type="button" class="popup-share" data-lot-id="${escapeHtml(lot.id)}" data-lot-name="${escapeHtml(lot.name || "חניון")}" data-latlon="${escapeHtml(lot.lat + "," + lot.lon)}" title="שתף קישור לחניון (Share)" aria-label="שתף (Share)">${SHARE_SVG}</button>` +
@@ -457,6 +490,7 @@ export function renderLots(lots) {
   if (pendingDeepLinkLotId != null) {
     const shared = markersByLotId[pendingDeepLinkLotId];
     pendingDeepLinkLotId = null;
+    track("deep_link", { found: !!shared });
     history.replaceState(null, "", location.pathname + location.search);
     if (shared) {
       // animate:false -- openPopup's autopan would cancel an animated
@@ -518,11 +552,16 @@ export function initMarkers(leafletMap, deepLinkLotId) {
   map.getContainer().addEventListener("click", onPlanBClick);
   map.getContainer().addEventListener("click", onShareClick);
   map.getContainer().addEventListener("click", onReportClick);
+  map.getContainer().addEventListener("click", onNavClick);
 
   // Expanding the details section grows an already-open popup, but Leaflet
   // only auto-pans on open -- without this the grown popup's top half ends
   // up under the map controls. 'toggle' doesn't bubble, so capture it.
   map.getContainer().addEventListener("toggle", (e) => {
-    if (e.target.closest && e.target.closest(".leaflet-popup")) adjustOpenPopupPan();
+    if (!e.target.closest || !e.target.closest(".leaflet-popup")) return;
+    adjustOpenPopupPan();
+    if (e.target.open && e.target.classList.contains("popup-details")) {
+      track("details_open", { lot: lotLabel(openPopupLotId != null ? lotById(openPopupLotId) : null) });
+    }
   }, true);
 }

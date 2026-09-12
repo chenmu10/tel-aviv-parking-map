@@ -4,6 +4,7 @@
 
 import { TLV_BOUNDS, DEFAULT_VIEW } from "./config.js";
 import { openNearestOpenLot } from "./markers.js";
+import { track } from "./analytics.js";
 
 // Results are biased to the city center and clipped to the shared
 // greater-Tel-Aviv bounds. Photon bbox order is minLon,minLat,maxLon,maxLat.
@@ -104,7 +105,10 @@ export function initSearch(map) {
     // animate:false for the same reason as the deep link: the popup's
     // autopan would cancel an animated setView mid-flight.
     map.setView([lat, lon], Math.max(map.getZoom(), 16), { animate: false });
-    if (!openNearestOpenLot(lat, lon)) {
+    const found = openNearestOpenLot(lat, lon);
+    // Only the outcome is recorded -- never the typed address.
+    track("search", { found });
+    if (!found) {
       // Lots not loaded yet, or nothing with room close enough -- say so
       // instead of silently doing nothing after the zoom.
       showNote("לא נמצא חניון פנוי בקרבת הכתובת (No open lot found nearby)");

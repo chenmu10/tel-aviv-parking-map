@@ -4,6 +4,7 @@
 
 import { STATUS_INFO, STATUS_ORDER } from "./config.js";
 import { RAW_API_URL } from "./api.js";
+import { track } from "./analytics.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -175,6 +176,7 @@ const LocateControl = L.Control.extend({
     L.DomEvent.on(btn, "click", (e) => {
       L.DomEvent.stopPropagation(e);
       btn.disabled = true;
+      track("locate");
       map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
     });
     L.DomEvent.disableClickPropagation(btn);

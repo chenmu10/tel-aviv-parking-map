@@ -49,7 +49,10 @@ Live: https://tlv-parking.vercel.app/ (also mirrored at https://chenmu10.github.
   support) and an automatic OSM raster fallback when WebGL/CDN is unavailable
 - Installable as a home-screen app (PWA manifest + icons)
 - Auto-refreshes every 2 minutes, paused while the tab/screen is backgrounded
-- Free, cookie-free page-view analytics via Cloudflare Web Analytics
+- Free, cookie-free analytics: Cloudflare Web Analytics (page views, both
+  hosts) and Vercel Web Analytics on the Vercel host, including usage events
+  (Waze/Maps taps, share, nearby-lot jumps, details, report, search outcome,
+  deep links, locate, manual refresh) — lot names only, never typed text
 - Small "i" info button next to the title for contact info and data-source links
 
 Data source: [Tel Aviv Municipality GIS open data](https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/970),
@@ -75,7 +78,8 @@ js/controls.js      banner, brand/info modal, legend, locate button
 js/freshness.js     freshness pill + fetch-lifecycle state
 js/markers.js       pins, popups, Plan B alternatives, share, #lot= deep links
 js/search.js        address search box (Photon geocoding, nearest-lot handoff)
-js/report.js        wrong-data report text + Gmail/clipboard helpers
+js/report.js        wrong-data report text + Gmail link helpers
+js/analytics.js     usage events → Vercel Web Analytics (no-op off the Vercel host)
 ```
 
 ## Run locally

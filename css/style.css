@@ -199,16 +199,15 @@ html, body { margin: 0; padding: 0; height: 100%; font-family: var(--font); }
 .report-category:hover { background: #f1f5f9; }
 .report-category.selected { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
 .report-actions { display: flex; gap: 6px; margin-top: 8px; }
-.report-actions .report-gmail, .report-actions .report-copy {
+.report-actions .report-gmail, .report-actions .report-form {
   flex: 1; display: inline-flex; align-items: center; justify-content: center;
   min-height: 34px; padding: 6px 8px; border-radius: 8px; font-family: var(--font);
   font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center;
 }
 .report-actions .report-gmail { background: #2563eb; color: #fff; border: 1px solid #2563eb; }
 .report-actions .report-gmail:hover { background: #1d4ed8; }
-.report-actions .report-copy { background: #fff; color: #16181d; border: 1px solid #cbd5e1; }
-.report-actions .report-copy:hover { background: #f1f5f9; }
-.report-actions .report-copy.done { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
+.report-actions .report-form { background: #fff; color: #16181d; border: 1px solid #cbd5e1; }
+.report-actions .report-form:hover { background: #f1f5f9; }
 .report-note { margin-top: 8px; font-size: 11px; line-height: 1.5; color: #64748b; }
 .report-note .report-email { color: #16181d; font-weight: 600; direction: ltr; unicode-bidi: embed; }
 .popup-chips { display: flex; gap: 6px; margin: 0 0 8px; flex-wrap: wrap; }

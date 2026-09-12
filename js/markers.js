@@ -15,7 +15,7 @@ import {
   isLotStale, escapeHtml, distanceMeters, formatDistance, bearingDegrees
 } from "./format.js";
 import {
-  REPORT_CATEGORIES, buildReport, gmailComposeUrl, gmailLinkTarget, reportClipboardText,
+  REPORT_CATEGORIES, buildReport, gmailComposeUrl, gmailLinkTarget,
   contactFormUrl, contactEmail
 } from "./report.js";
 
@@ -222,7 +222,7 @@ function reportPanelHtml(lot) {
     `<div class="report-categories">${categories}</div>` +
     '<div class="report-actions">' +
       `<a class="report-gmail" href="#" target="${gmailLinkTarget}" rel="noopener noreferrer">פתיחת טיוטה ב-Gmail</a>` +
-      '<button type="button" class="report-copy">העתקה + טופס באתר</button>' +
+      `<a class="report-form" href="${escapeHtml(contactFormUrl)}" target="_blank" rel="noopener noreferrer">טופס יצירת קשר באתר ↗</a>` +
     "</div>" +
     // Calms the "will this send something in my name?" hesitation: the
     // buttons only prepare a draft, and the recipient is named up front.
@@ -249,7 +249,7 @@ function adjustOpenPopupPan() {
 }
 
 function onReportClick(e) {
-  const target = e.target.closest && e.target.closest(".popup-report, .report-category, .report-copy");
+  const target = e.target.closest && e.target.closest(".popup-report, .report-category");
   if (!target) return;
   const content = target.closest(".leaflet-popup-content");
   const panel = content && content.querySelector(".popup-report-panel");
@@ -262,35 +262,10 @@ function onReportClick(e) {
     return;
   }
 
-  if (target.classList.contains("report-category")) {
-    panel.querySelectorAll(".report-category").forEach((b) => b.classList.remove("selected"));
-    target.classList.add("selected");
-    refreshGmailLink(panel);
-    return;
-  }
-
-  // Copy + form: their form can't be prefilled, so the report goes to the
-  // clipboard for pasting. The form tab is opened synchronously, inside the
-  // click, before the clipboard promise -- popup blockers reject windows
-  // opened from a later microtask.
-  const lot = lotById(panel.getAttribute("data-lot-id"));
-  const selected = panel.querySelector(".report-category.selected");
-  if (!lot || !selected) return;
-  const text = reportClipboardText(reportFor(lot, selected.getAttribute("data-category")));
-  window.open(contactFormUrl, "_blank", "noopener");
-  const flash = (label) => {
-    const original = target.textContent;
-    target.textContent = label;
-    target.classList.add("done");
-    setTimeout(() => { target.textContent = original; target.classList.remove("done"); }, 2600);
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text)
-      .then(() => flash("הועתק ✓ הדביקו בטופס"))
-      .catch(() => window.prompt("העתיקו את הדיווח (Copy the report):", text));
-  } else {
-    window.prompt("העתיקו את הדיווח (Copy the report):", text);
-  }
+  // Category buttons: reselect and rebuild the Gmail draft link.
+  panel.querySelectorAll(".report-category").forEach((b) => b.classList.remove("selected"));
+  target.classList.add("selected");
+  refreshGmailLink(panel);
 }
 
 // navigator.share opens the native sheet (the mobile case this is for);

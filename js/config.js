@@ -61,6 +61,6 @@ export const DISCOUNT_BIG_TIER_PCT = 60;
 // Where "this data is wrong" reports go. Ahuzot HaHof (the lot operator and
 // the source behind the GIS feed) publishes these on ahuzot.co.il/Contact.
 // Their contact form is an ASP.NET POST page that can't be prefilled from a
-// link, so the form path copies the report text for pasting.
+// link, so it is offered as a plain link for users without Gmail.
 export const AHUZOT_CONTACT_EMAIL = "ahuzot@ahuzot.co.il";
 export const AHUZOT_CONTACT_FORM_URL = "https://www.ahuzot.co.il/Contact/";

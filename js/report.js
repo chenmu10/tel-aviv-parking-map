@@ -1,11 +1,11 @@
 // "This data is wrong" reports to the data provider (Ahuzot HaHof): the
-// report text, the Gmail compose link, and the copy-for-their-form text.
-// Pure string/URL helpers -- markers.js owns the report panel DOM.
+// report text and the Gmail draft link. Pure string/URL helpers --
+// markers.js owns the report panel DOM.
 //
 // Gmail's compose URL rather than mailto: mailto hands off to the OS default
 // mail app, which on iPhones is often an unconfigured Apple Mail and on
-// desktops is rarely the mail the user actually reads. The copy + form path
-// covers everyone without Gmail.
+// desktops is rarely the mail the user actually reads. Users without Gmail
+// get a plain link to the operator's contact form (it can't be prefilled).
 
 import { AHUZOT_CONTACT_EMAIL, AHUZOT_CONTACT_FORM_URL } from "./config.js";
 import { formatUpdatedAt, israelNowMs, statusInfo } from "./format.js";
@@ -92,11 +92,6 @@ export function gmailComposeUrl({ subject, body }) {
 // A custom-scheme link must open in the current tab: target=_blank on iOS
 // leaves a blank Safari tab behind when the app takes over.
 export const gmailLinkTarget = IS_IOS ? "_self" : "_blank";
-
-// What lands on the clipboard for pasting into the contact form.
-export function reportClipboardText({ subject, body }) {
-  return `אל: ${AHUZOT_CONTACT_EMAIL}\nנושא: ${subject}\n\n${body}`;
-}
 
 export const contactFormUrl = AHUZOT_CONTACT_FORM_URL;
 export const contactEmail = AHUZOT_CONTACT_EMAIL;

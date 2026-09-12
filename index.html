@@ -37,6 +37,18 @@
 <!-- Cloudflare Web Analytics -->
 <script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "a59371dfe78942f29f5c7c5b5cb50cb6"}'></script>
 <!-- End Cloudflare Web Analytics -->
+<!-- Vercel Web Analytics (first-party, cookie-less). The script is served by
+     Vercel itself, so it is only injected on that host -- on the GitHub Pages
+     mirror the URL would 404. -->
+<script>
+  if (location.hostname.endsWith(".vercel.app")) {
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    var vercelInsights = document.createElement("script");
+    vercelInsights.defer = true;
+    vercelInsights.src = "/_vercel/insights/script.js";
+    document.head.appendChild(vercelInsights);
+  }
+</script>
 </head>
 <body>
 

@@ -52,7 +52,7 @@ Live: https://tlv-parking.vercel.app/ (also mirrored at https://chenmu10.github.
 - Free, cookie-free analytics: Cloudflare Web Analytics (page views, both
   hosts) and Vercel Web Analytics on the Vercel host, including usage events
   (Waze/Maps taps, share, nearby-lot jumps, details, report, search outcome,
-  deep links, locate, manual refresh) — lot names only, never typed text
+  deep links, locate, manual refresh, portfolio link) — lot names only, never typed text
 - Small "i" info button next to the title for contact info and data-source links
 
 Data source: [Tel Aviv Municipality GIS open data](https://gisn.tel-aviv.gov.il/arcgis/rest/services/IView2/MapServer/970),

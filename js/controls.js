@@ -39,6 +39,7 @@ function closeInfoModal() {
 
 function initInfoModal() {
   document.getElementById("raw-api-link").href = RAW_API_URL;
+  document.getElementById("portfolio-link").addEventListener("click", () => track("portfolio_link"));
   document.querySelector("#info-modal .info-close").addEventListener("click", closeInfoModal);
   infoBackdrop.addEventListener("click", (e) => {
     if (e.target === infoBackdrop) closeInfoModal();

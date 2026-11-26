@@ -1,5 +1,5 @@
 // Lot markers and their popups: re-rendered on every data refresh, plus
-// everything popups carry — Plan B nearby alternatives, the share button,
+// everything popups carry — Plan B nearby alternatives, the share actions,
 // #lot= deep links, and keeping an open popup alive across re-renders.
 // Plan B lives here (not its own module) because it and the popup HTML and
 // markersByLotId all need each other; splitting them would only create an
@@ -162,9 +162,47 @@ function createShareIcon() {
 }
 
 // Single source of truth for the share glyph: the popup HTML string is
-// derived from the same DOM builder used to restore the icon after the
-// "copied" flash, so the two can't drift apart.
+// derived from the same DOM builder, so a later tweak can't ship a
+// different icon than the one the module knows how to draw.
 const SHARE_SVG = createShareIcon().outerHTML;
+
+// Side-view car, same stroke weight as the share glyph, for "שלח לרכב".
+function createCarIcon() {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("width", "20");
+  svg.setAttribute("height", "20");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  const body = document.createElementNS(SVG_NS, "path");
+  body.setAttribute("d", "M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2");
+  svg.appendChild(body);
+  const axle = document.createElementNS(SVG_NS, "path");
+  axle.setAttribute("d", "M9 17h6");
+  svg.appendChild(axle);
+  [[7, 17], [17, 17]].forEach((c) => {
+    const circle = document.createElementNS(SVG_NS, "circle");
+    circle.setAttribute("cx", c[0]);
+    circle.setAttribute("cy", c[1]);
+    circle.setAttribute("r", "2");
+    svg.appendChild(circle);
+  });
+  return svg;
+}
+const CAR_SVG = createCarIcon().outerHTML;
+
+// Google Maps directions by exact coordinates. Shared by the Maps button
+// and "שלח לרכב" so the two can't drift to different URLs.
+function mapsDirectionsUrl(latlon) {
+  return "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(latlon);
+}
+
+function lotDeepLink(lotId) {
+  return location.origin + location.pathname + "#lot=" + lotId;
+}
 
 function createFlagIcon() {
   const svg = document.createElementNS(SVG_NS, "svg");
@@ -212,7 +250,7 @@ function reportFor(lot, categoryKey) {
   return buildReport(lot, categoryKey, {
     ahuzotId,
     officialLink: ahuzotId ? AHUZOT_LINK_BASE + ahuzotId : undefined,
-    deepLink: location.origin + location.pathname + "#lot=" + lot.id
+    deepLink: lotDeepLink(lot.id)
   });
 }
 
@@ -288,45 +326,57 @@ function onReportClick(e) {
   refreshGmailLink(panel);
 }
 
+// Two share actions, because one payload can't serve both audiences.
+// "שלח לרכב" (popup-send-car) shares ONLY the Google Maps directions URL.
+// Nav-oriented targets such as the Tesla app geocode the first place-like
+// thing in the text and can't parse our #lot= deep link; a leading lot
+// name ("כרמל 1", or "בית האצ\"ל" whose gershayim breaks address parsing)
+// used to resolve to the city center, so the text is the Maps URL alone.
+// text and url are the same URL on purpose: targets that read text (Tesla)
+// and targets that preview url (WhatsApp) each receive only that link.
+// "שתף חניון" (popup-share) shares ONLY the site deep link, with a Hebrew
+// sentence and no Maps URL, so a person opening it lands on this lot.
 // navigator.share opens the native sheet (the mobile case this is for);
-// desktop browsers without it copy the link and flash confirmation.
+// without it, copy the relevant link and flash ✓, then prompt() if the
+// clipboard rejects. AbortError is the user dismissing the sheet.
 function onShareClick(e) {
-  const btn = e.target.closest && e.target.closest(".popup-share");
+  const btn = e.target.closest && e.target.closest(".popup-share, .popup-send-car");
   if (!btn) return;
-  const url = location.origin + location.pathname + "#lot=" + btn.getAttribute("data-lot-id");
-  const name = btn.getAttribute("data-lot-name");
-  // The text carries a Google Maps destination link so nav-oriented share
-  // targets (e.g. the Tesla app, which sends destinations to the car and
-  // can't parse our deep link) get usable coordinates; human recipients
-  // still get the map deep link in the url field.
-  // The link goes FIRST: such targets geocode the first place-like thing
-  // they find in the text, and a leading lot name like "כרמל 1" (generic)
-  // or "בית האצ\"ל" (gershayim breaks address parsing) resolved to the city
-  // center instead of the lot, while unique names like "ליבר" happened to
-  // work. Coordinates first, name on its own line after.
-  const navUrl = "https://www.google.com/maps/dir/?api=1&destination=" +
-    encodeURIComponent(btn.getAttribute("data-latlon"));
-  track("share", { lot: name, method: navigator.share ? "sheet" : "copy" });
+  const name = btn.getAttribute("data-lot-name") || "חניון";
+  const toCar = btn.classList.contains("popup-send-car");
+  const link = toCar
+    ? mapsDirectionsUrl(btn.getAttribute("data-latlon"))
+    : lotDeepLink(btn.getAttribute("data-lot-id"));
+  const payload = toCar
+    ? { title: "חניון " + name, text: link, url: link }
+    : { title: "חניון " + name, text: "חניון " + name + " – תפוסה בזמן אמת", url: link };
+  const method = navigator.share ? "sheet" : "copy";
+  const target = toCar ? "car" : "lot";
+  // "share" stays so existing dashboards keep counting shares; the
+  // per-button event says which link actually went out.
+  track("share", { lot: name, method: method, target: target });
+  track(toCar ? "share_car" : "share_lot", { lot: name, method: method });
   if (navigator.share) {
-    navigator.share({ title: "חניון " + name, text: navUrl + "\nחניון " + name, url: url }).catch(() => {});
-  } else if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(() => {
-      // Compact ✓ flash: the button keeps its fixed size so the flash
-      // can't overflow the popup-nav row.
-      btn.classList.add("copied");
-      btn.textContent = "✓";
-      setTimeout(() => {
-        btn.classList.remove("copied");
-        btn.textContent = "";
-        btn.appendChild(createShareIcon());
-      }, 1600);
-    }).catch(() => {
-      // Clipboard can reject (unfocused document, permissions policy);
-      // fall back to letting the user copy manually.
-      window.prompt("העתק את הקישור (Copy the link):", url);
+    navigator.share(payload).catch((err) => {
+      if (err && err.name === "AbortError") return;
     });
   } else {
-    window.prompt("העתק את הקישור (Copy the link):", url);
+    copyLink(btn, link);
+  }
+}
+
+function copyLink(btn, link) {
+  const promptCopy = () => window.prompt("העתק את הקישור (Copy the link):", link);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(() => {
+      // ✓ stays inside the fixed icon box (see .popup-action.copied) so
+      // the label and the row width don't jump.
+      btn.classList.add("copied");
+      clearTimeout(btn._copiedTimer);
+      btn._copiedTimer = setTimeout(() => btn.classList.remove("copied"), 1600);
+    }).catch(promptCopy);
+  } else {
+    promptCopy();
   }
 }
 
@@ -369,7 +419,9 @@ function popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacit
   // like "הנמל 1" are ambiguous (e.g. Tel Aviv Port vs. Jaffa Port) and
   // Waze/Google's geocoder can resolve them to the wrong place entirely.
   // The GIS coordinates are exact, so they're the reliable choice.
-  const destinationParam = encodeURIComponent(lot.lat + "," + lot.lon);
+  const latlon = lot.lat + "," + lot.lon;
+  const destinationParam = encodeURIComponent(latlon);
+  const mapsUrl = mapsDirectionsUrl(latlon);
 
   const updatedAgo = lot.updatedAt
     ? `עודכן ${escapeHtml(formatAgo(lot.updatedAt, nowMs))}`
@@ -395,15 +447,26 @@ function popupHtml(lot, info, isStale, nowMs, visibleLots, officialLink, capacit
         escapeHtml(lot.updatedAt ? formatAgo(lot.updatedAt, nowMs).replace(/^לפני /, "מזה ") : "זמן רב") +
         " — ייתכן שאינו מדויק (Status may be outdated)</div>"
       : "") +
-    '<div class="popup-nav">' +
-      `<a class="popup-nav-btn" data-nav="waze" data-lot-id="${escapeHtml(lot.id)}" href="https://waze.com/ul?ll=${destinationParam}&navigate=yes" target="_blank" rel="noopener noreferrer" aria-label="Waze" title="Waze">` +
-        '<img src="waze-icon.png" alt="" width="40" height="40" />' +
-      "</a>" +
-      `<a class="popup-nav-btn" data-nav="maps" data-lot-id="${escapeHtml(lot.id)}" href="https://www.google.com/maps/dir/?api=1&destination=${destinationParam}" target="_blank" rel="noopener noreferrer" aria-label="Google Maps" title="Google Maps">` +
-        '<img src="google-maps-icon.png" alt="" width="40" height="40" />' +
-      "</a>" +
-      `<button type="button" class="popup-share" data-lot-id="${escapeHtml(lot.id)}" data-lot-name="${escapeHtml(lot.name || "חניון")}" data-latlon="${escapeHtml(lot.lat + "," + lot.lon)}" title="שתף קישור לחניון (Share)" aria-label="שתף (Share)">${SHARE_SVG}</button>` +
-      `<button type="button" class="popup-report" title="דיווח על נתון שגוי לאחוזות החוף (Report wrong data)" aria-label="דיווח על נתון שגוי (Report wrong data)">${FLAG_SVG}</button>` +
+    '<div class="popup-actions">' +
+      '<div class="popup-nav">' +
+        `<a class="popup-nav-btn" data-nav="waze" data-lot-id="${escapeHtml(lot.id)}" href="https://waze.com/ul?ll=${destinationParam}&navigate=yes" target="_blank" rel="noopener noreferrer" aria-label="Waze" title="Waze">` +
+          '<img src="waze-icon.png" alt="" width="40" height="40" />' +
+        "</a>" +
+        `<a class="popup-nav-btn" data-nav="maps" data-lot-id="${escapeHtml(lot.id)}" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Google Maps" title="Google Maps">` +
+          '<img src="google-maps-icon.png" alt="" width="40" height="40" />' +
+        "</a>" +
+        `<button type="button" class="popup-action popup-send-car" data-share="car" data-lot-id="${escapeHtml(lot.id)}" data-lot-name="${escapeHtml(lot.name || "חניון")}" data-latlon="${escapeHtml(latlon)}" title="שלח לרכב — קישור ניווט בגוגל מפות (Send to car)" aria-label="שלח לרכב (Send to car)">` +
+          `<span class="popup-action-icon" aria-hidden="true">${CAR_SVG}</span>` +
+          `<span class="popup-action-label">שלח לרכב</span>` +
+        "</button>" +
+      "</div>" +
+      '<div class="popup-secondary">' +
+        `<button type="button" class="popup-action popup-share" data-share="lot" data-lot-id="${escapeHtml(lot.id)}" data-lot-name="${escapeHtml(lot.name || "חניון")}" title="שתף חניון — קישור לפתיחת החניון במפה (Share lot)" aria-label="שתף חניון (Share lot)">` +
+          `<span class="popup-action-icon" aria-hidden="true">${SHARE_SVG}</span>` +
+          `<span class="popup-action-label">שתף חניון</span>` +
+        "</button>" +
+        `<button type="button" class="popup-report" title="דיווח על נתון שגוי לאחוזות החוף (Report wrong data)" aria-label="דיווח על נתון שגוי (Report wrong data)">${FLAG_SVG}</button>` +
+      "</div>" +
     "</div>" +
     reportPanelHtml(lot) +
     (chips ? `<div class="popup-chips">${chips}</div>` : "") +

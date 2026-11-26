@@ -34,9 +34,13 @@ Live: https://tlv-parking.vercel.app/ (also mirrored at https://chenmu10.github.
   status shown, both timestamps). Nothing is sent automatically — it opens as
   a Gmail draft to review; users without Gmail get a link to ahuzot.co.il's
   contact form
-- One-tap navigation to a lot via Waze or Google Maps (by exact coordinates)
-- Share button per lot (native share sheet / copy link) with `#lot=<id>` deep
-  links that open the shared lot's popup directly
+- One-tap navigation to a lot via Waze or Google Maps (by exact coordinates).
+  "שלח לרכב" sits with those buttons and shares only the Google Maps
+  directions link, so car targets (such as Tesla) receive a clean Maps URL
+- "שתף חניון" shares only the site deep link (`#lot=<id>`, native share
+  sheet, or copy) with the text `חניון <name> – תפוסה בזמן אמת`. Opening
+  that link lands on the lot's popup. If sharing isn't available, either
+  button copies its own link (✓) or falls back to a copy prompt
 - Freshness pill showing when the source data last changed, with a manual
   refresh button and an outage state when the feed serves no statuses
 - A link to the lot's official ahuzot.co.il page when one can be matched by name
@@ -51,7 +55,8 @@ Live: https://tlv-parking.vercel.app/ (also mirrored at https://chenmu10.github.
 - Auto-refreshes every 2 minutes, paused while the tab/screen is backgrounded
 - Free, cookie-free analytics: Cloudflare Web Analytics (page views, both
   hosts) and Vercel Web Analytics on the Vercel host, including usage events
-  (Waze/Maps taps, share, nearby-lot jumps, details, report, search outcome,
+  (Waze/Maps taps, share with a `target` of `lot` or `car`, plus `share_lot`
+  and `share_car`, nearby-lot jumps, details, report, search outcome,
   deep links, locate, manual refresh, portfolio link) — lot names only, never typed text
 - Small "i" info button next to the title for contact info and data-source links
 
